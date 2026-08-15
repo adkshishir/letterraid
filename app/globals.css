@@ -1,0 +1,339 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   LetterRaid design tokens — inherited from Cahoots' docs/DESIGN.md, which has
+   the rationale behind each
+   value. Dark is the default theme (evening/couch/phone-in-bed is the common
+   case for this audience); light is a full parallel theme, not an afterthought.
+   Backgrounds are never pure black/white so long sessions don't strain eyes.
+--------------------------------------------------------------------------- */
+
+/*
+  Colour values below are audited by `npm run audit:contrast` (and in CI), not
+  chosen by eye. The first draft of this palette failed its own DESIGN.md
+  targets in 18 places, almost all in light mode.
+
+  Two distinctions the audit forced:
+
+  - `--brand-vivid` / `--brand-2-vivid` are *decorative only* (gradients, the
+    logo wordmark). They carry no text and so aren't contrast-constrained,
+    which is what lets light mode keep the playful pink instead of flattening
+    it to a compliant maroon everywhere.
+  - `--border` is a decorative divider; `--border-strong` is for anything whose
+    outline is the control's own boundary (inputs, focus rings), where WCAG
+    1.4.11 wants 3:1.
+*/
+:root {
+  --bg: #16141c;
+  --surface: #201d29;
+  --surface-raised: #2a2635;
+  --border: #3a3546;
+  --border-strong: #7a7391;
+  --text-primary: #f5f1fa;
+  --text-secondary: #a79fbd;
+
+  --brand: #ff7a9c;
+  --brand-2: #a594f9;
+  --brand-vivid: #ff7a9c;
+  --brand-2-vivid: #8b7cf6;
+
+  --heist-accent: #ff9b6b;
+
+  --success: #5ce0a0;
+  --danger: #ff8a85;
+  --warning: #ffc069;
+
+  /* Text/icon colour for anything sitting on a brand or accent fill. Dark here
+     because those fills are bright in dark mode — white on #ff7a9c is 2.5:1. */
+  --on-fill: #16141c;
+
+  /* Shadows are tinted with the brand hue rather than neutral black — reads
+     warmer and more "designed" than a generic rgba(0,0,0,.2). */
+  --shadow-sm: 0 2px 8px rgba(255, 122, 156, 0.08);
+  --shadow-md: 0 4px 16px rgba(255, 122, 156, 0.1);
+  --shadow-lg: 0 8px 30px rgba(255, 122, 156, 0.12);
+
+  /* Named --r-* rather than --radius-* so they don't collide with the
+     --radius-* keys Tailwind generates from the @theme block below. */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+
+  /* Neutral default; each game's layout overrides via [data-game]. */
+  --accent: var(--brand);
+}
+
+/*
+  Light palette, defined once.
+
+  It has to be applied from two selectors (the OS preference, and an explicit
+  user override), and having the literal values written twice is how those two
+  drift apart. These `--l-*` definitions are the single source; both selectors
+  below only reference them.
+
+  The accents are markedly darker than their dark-mode counterparts: the same
+  cheerful gold that reads at 10:1 on a near-black background manages 2.5:1 on
+  ivory. Vivid decorative variants are kept separately so gradients and the
+  wordmark stay bright.
+*/
+:root {
+  --l-bg: #fbf8f5;
+  --l-surface: #ffffff;
+  --l-surface-raised: #f3eefb;
+  --l-border: #e5dff0;
+  --l-border-strong: #8f87a3;
+  --l-text-primary: #241f2e;
+  --l-text-secondary: #5f5870;
+
+  --l-brand: #b32552;
+  --l-brand-2: #5433c7;
+  --l-brand-vivid: #e8547a;
+  --l-brand-2-vivid: #6d53e0;
+
+  --l-heist-accent: #a33c00;
+
+  --l-success: #0f6b45;
+  --l-danger: #b3261e;
+  --l-warning: #7a5200;
+
+  --l-shadow-sm: 0 2px 8px rgba(36, 31, 46, 0.06);
+  --l-shadow-md: 0 4px 16px rgba(36, 31, 46, 0.08);
+  --l-shadow-lg: 0 8px 30px rgba(36, 31, 46, 0.1);
+}
+
+@media (prefers-color-scheme: light) {
+  /* :not([data-theme]) so an explicit user choice always beats the OS setting.
+     Without it, a user who picks dark on a light-mode device gets overridden. */
+  :root:not([data-theme]) {
+    --bg: var(--l-bg);
+    --surface: var(--l-surface);
+    --surface-raised: var(--l-surface-raised);
+    --border: var(--l-border);
+    --border-strong: var(--l-border-strong);
+    --text-primary: var(--l-text-primary);
+    --text-secondary: var(--l-text-secondary);
+
+    --brand: var(--l-brand);
+    --brand-2: var(--l-brand-2);
+    --brand-vivid: var(--l-brand-vivid);
+    --brand-2-vivid: var(--l-brand-2-vivid);
+
+    --heist-accent: var(--l-heist-accent);
+
+    --success: var(--l-success);
+    --danger: var(--l-danger);
+    --warning: var(--l-warning);
+
+    /* Light-mode fills are dark, so their text flips to white. */
+    --on-fill: #ffffff;
+
+    --shadow-sm: var(--l-shadow-sm);
+    --shadow-md: var(--l-shadow-md);
+    --shadow-lg: var(--l-shadow-lg);
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: var(--l-bg);
+  --surface: var(--l-surface);
+  --surface-raised: var(--l-surface-raised);
+  --border: var(--l-border);
+  --border-strong: var(--l-border-strong);
+  --text-primary: var(--l-text-primary);
+  --text-secondary: var(--l-text-secondary);
+
+  --brand: var(--l-brand);
+  --brand-2: var(--l-brand-2);
+  --brand-vivid: var(--l-brand-vivid);
+  --brand-2-vivid: var(--l-brand-2-vivid);
+
+  --heist-accent: var(--l-heist-accent);
+
+  --success: var(--l-success);
+  --danger: var(--l-danger);
+  --warning: var(--l-warning);
+
+  --on-fill: #ffffff;
+
+  --shadow-sm: var(--l-shadow-sm);
+  --shadow-md: var(--l-shadow-md);
+  --shadow-lg: var(--l-shadow-lg);
+}
+
+/* Per-game accent swap. One attribute on the game's root layout; components
+   read var(--accent) and never need to know which game they're rendering in. */
+[data-game="heist"] {
+  --accent: var(--heist-accent);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  /* Aliased to `ink`/`muted` so the utilities read as `text-ink` / `text-muted`
+     rather than the doubled-up `text-text-primary`. */
+  --color-ink: var(--text-primary);
+  --color-muted: var(--text-secondary);
+
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
+  --color-brand-vivid: var(--brand-vivid);
+  --color-brand-2-vivid: var(--brand-2-vivid);
+  --color-border-strong: var(--border-strong);
+  --color-on-fill: var(--on-fill);
+  --color-accent: var(--accent);
+  --color-heist-accent: var(--heist-accent);
+
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+
+  --font-sans: var(--font-jakarta);
+  --font-mono: var(--font-jetbrains);
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+}
+
+/* --------------------------------------------------------------------------
+   Motion — DESIGN.md's motion principles. Every animation here degrades to a
+   plain fade under prefers-reduced-motion (block at the bottom).
+-------------------------------------------------------------------------- */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* A letter flipping into place. Kept as a shared motion primitive — the
+   reduced-motion fallback below is what the a11y suite asserts against. */
+@keyframes letter-flip {
+  from {
+    transform: rotateX(180deg);
+    opacity: 0;
+  }
+  to {
+    transform: rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+/* Wrong guess: playful, not alarming — small amplitude, short duration. */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modal/card entrance: cross-fade + slight scale, never a hard cut. */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 250ms ease-out both;
+}
+
+.animate-letter-flip {
+  animation: letter-flip 300ms ease-out both;
+  backface-visibility: hidden;
+}
+
+.animate-shake {
+  animation: shake 200ms ease-in-out 2;
+}
+
+.animate-slide-up {
+  animation: slide-up 250ms ease-out both;
+}
+
+.animate-pop-in {
+  animation: pop-in 250ms ease-out both;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* Tactile press feedback on buttons/cards. */
+.pressable {
+  transition:
+    transform 120ms ease-out,
+    box-shadow 120ms ease-out;
+}
+
+.pressable:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* DESIGN.md: flip/shake/confetti all degrade to simple opacity fades. */
+  .animate-letter-flip,
+  .animate-shake,
+  .animate-slide-up,
+  .animate-pop-in,
+  .animate-fade-in {
+    animation: fade-in 150ms ease-out both;
+  }
+
+  .animate-pulse-soft {
+    animation: none;
+  }
+
+  .pressable:active {
+    transform: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}

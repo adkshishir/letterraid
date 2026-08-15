@@ -1,0 +1,40 @@
+# Still manual-only (workflow_dispatch): the repo isn't on GitHub yet, and the
+# server copy at the path below isn't a clone, so `git pull` would fail. Once
+# the repo is pushed and cloned onto the server, add:
+#
+#   push:
+#     branches: [main]
+#
+# to the triggers so it deploys automatically like imposter does.
+#
+# NOTE: NEXT_PUBLIC_* vars are inlined at build time, so the build on the server
+# must be given the production values — pm2's env alone is not enough. Update
+# both values here when the final domain replaces the interim one.
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+
+env:
+  SITE_URL: https://letterraid.adhikarishishir.com.np
+  BACKEND_URL: https://api.letterraid.adhikarishishir.com.np
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ubuntu/games/letterraid/frontend
+            git pull origin main
+            npm ci
+            NEXT_PUBLIC_SITE_URL=${{ env.SITE_URL }} \
+            NEXT_PUBLIC_BACKEND_URL=${{ env.BACKEND_URL }} \
+              npm run build
+            pm2 startOrReload ecosystem.config.js --update-env
+            pm2 save

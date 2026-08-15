@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Contrast audit
+        run: npm run audit:contrast
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SITE_URL: http://localhost:4031
+          NEXT_PUBLIC_BACKEND_URL: http://localhost:4032
+
+      # The browser tests boot the real backend too, so it has to be built.
+      - name: Build backend for e2e
+        run: npm ci && npm run build
+        working-directory: ../backend
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Browser tests
+        run: npm run test:e2e
