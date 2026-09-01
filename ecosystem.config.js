@@ -6,9 +6,9 @@ module.exports = {
       args: 'run start',
       env: {
         NODE_ENV: 'production',
-        // 4041 — imposter holds 4021/4022 and Cahoots holds 4031/4032 on the
+        // 5001 — imposter holds 4021/4022 and Cahoots holds 4031/4032 on the
         // same box.
-        PORT: 4041,
+        PORT: 5001,
 
         // NEXT_PUBLIC_SITE_URL / NEXT_PUBLIC_BACKEND_URL deliberately live in
         // .env.production, not here. They're inlined into the client bundle at
