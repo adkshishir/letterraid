@@ -6,9 +6,9 @@ module.exports = {
       args: 'run start',
       env: {
         NODE_ENV: 'production',
-        // 5001 — imposter holds 4021/4022 and Cahoots holds 4031/4032 on the
-        // same box.
-        PORT: 5001,
+        // 5003 — portfolio holds 5000, twofaced holds 5001/5002 on the same
+        // box.
+        PORT: 5003,
 
         // NEXT_PUBLIC_SITE_URL / NEXT_PUBLIC_BACKEND_URL deliberately live in
         // .env.production, not here. They're inlined into the client bundle at
