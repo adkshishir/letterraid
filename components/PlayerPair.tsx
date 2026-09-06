@@ -71,7 +71,7 @@ export default function PlayerPair({
         className={`h-0.5 w-12 rounded-full ${
           waiting
             ? "animate-pulse-soft bg-border"
-            : "bg-gradient-to-r from-brand-vivid to-brand-2-vivid"
+            : "bg-[#7c3aed]"}
         }`}
       />
 

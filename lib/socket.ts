@@ -1,4 +1,5 @@
 import { io, Socket } from "socket.io-client";
+import { getToken } from "./auth";
 
 /**
  * LetterRaid runs one Socket.io namespace per game (see docs/SOCKET_EVENTS.md),
@@ -32,7 +33,11 @@ export function getSocket(namespace: GameNamespace): Socket {
   const existing = sockets.get(namespace);
   if (existing) return existing;
 
-  const socket = io(`${BACKEND_URL}/${namespace}`, { autoConnect: true });
+  const token = getToken();
+  const socket = io(`${BACKEND_URL}/${namespace}`, {
+    autoConnect: true,
+    auth: token ? { token } : undefined,
+  });
   sockets.set(namespace, socket);
   return socket;
 }

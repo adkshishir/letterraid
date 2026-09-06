@@ -1,18 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { Sora, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import { AuthProvider } from "@/components/AuthProvider";
 import "./globals.css";
-import { ThemeScript } from "@/components/ThemeScript";
 
-// DESIGN.md: one family for headers and body — geometric but rounded, friendly
-// without being cartoonish.
-const jakarta = Plus_Jakarta_Sans({
+const sora = Sora({
   subsets: ["latin"],
-  variable: "--font-jakarta",
+  variable: "--font-sora",
   display: "swap",
 });
 
-// Used for word tiles / letter skeletons: fixed-width slots make blank vs.
-// revealed letters line up without any layout math.
+const hanken = Hanken_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-hanken",
+  display: "swap",
+});
+
 const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-jetbrains",
@@ -20,23 +22,20 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#16141C" },
-    { media: "(prefers-color-scheme: light)", color: "#FBF8F5" },
-  ],
+  themeColor: "#0b1326",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:4041",
-  ),
   title: {
-    default: "LetterRaid — real-time word games you play against someone",
-    // Per-route titles fill the %s; see docs/SEO.md for the naming pattern.
+    default: "LetterRaid",
     template: "%s | LetterRaid",
   },
   description:
-    "Fast head-to-head word games. Grab words off a shared table of letters and steal the ones they took — no turns, no signup, just share a room code.",
+    "Real-time word battles. Grab words, steal theirs, climb the ranks.",
 };
 
 export default function RootLayout({
@@ -48,12 +47,11 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${jakarta.variable} ${jetbrains.variable} h-full antialiased`}
+      className={`${sora.variable} ${hanken.variable} ${jetbrains.variable} h-full antialiased dark`}
     >
-      <head>
-        <ThemeScript />
-      </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

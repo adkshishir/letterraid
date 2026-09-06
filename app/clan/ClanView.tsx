@@ -1,0 +1,276 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Bot, Users, UserPlus, ArrowLeft, Zap, Swords } from "lucide-react";
+import { getPlayerId, getSocket } from "@/lib/socket";
+import { DISPLAY_NAME_MAX_LENGTH, getStoredDisplayName, storeDisplayName } from "@/lib/player";
+import { useClientValue } from "@/lib/use-client-value";
+import type { RoomCreatedPayload, RoomError } from "@/lib/types";
+
+const ROOM_CODE_LENGTH = 4;
+
+export default function ClanView() {
+  const router = useRouter();
+  const storedName = useClientValue(getStoredDisplayName, "");
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<"idle" | "create" | "join" | "bots">("idle");
+
+  const nameRef = useRef<HTMLInputElement>(null);
+  const joinRef = useRef<HTMLButtonElement>(null);
+
+  const [seeded, setSeeded] = useState(false);
+  if (!seeded && storedName) {
+    setSeeded(true);
+    setName(storedName);
+  }
+
+  useEffect(() => {
+    const socket = getSocket("heist");
+    const onCreated = ({ roomCode }: RoomCreatedPayload) => {
+      storeDisplayName(name.trim());
+      router.push(`/room/${roomCode}`);
+    };
+    const onError = (payload: RoomError) => {
+      setBusy(false);
+      setError(payload.message);
+    };
+    socket.on("room:created", onCreated);
+    socket.on("room:error", onError);
+    return () => {
+      socket.off("room:created", onCreated);
+      socket.off("room:error", onError);
+    };
+  }, [name, router]);
+
+  const trimmedName = name.trim();
+  const normalizedCode = code.trim().toUpperCase();
+  const canCreate = !!trimmedName && !busy;
+  const canJoin = canCreate && normalizedCode.length === ROOM_CODE_LENGTH;
+
+  const codeWasComplete = useRef(false);
+  useEffect(() => {
+    const complete = normalizedCode.length === ROOM_CODE_LENGTH;
+    if (complete === codeWasComplete.current) return;
+    codeWasComplete.current = complete;
+    if (complete) (trimmedName ? joinRef : nameRef).current?.focus();
+  }, [normalizedCode, trimmedName]);
+
+  const handleCreate = () => {
+    setBusy(true);
+    setError(null);
+    getSocket("heist").emit("room:create", {
+      playerId: getPlayerId(),
+      displayName: trimmedName,
+    });
+  };
+
+  const handleJoin = () => {
+    storeDisplayName(trimmedName);
+    router.push(`/room/${normalizedCode}`);
+  };
+
+  const reset = () => { setMode("idle"); setError(null); setCode(""); setBusy(false); };
+
+  /* ─── IDLE: show mode selection ─── */
+  if (mode === "idle") {
+    return (
+      <div className="px-4 max-w-lg mx-auto animate-fade-in">
+        <div className="mb-6 pt-2">
+          <h2 className="text-xl font-bold text-[#dae2fd]" style={{ fontFamily: "var(--font-sora)" }}>
+            Squads
+          </h2>
+          <p className="text-[11px] text-[#ccc3d8]/40 mt-0.5" style={{ fontFamily: "var(--font-jetbrains)" }}>
+            Play with friends or practice vs bots
+          </p>
+        </div>
+
+        {/* Game Modes */}
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          <button
+            onClick={() => setMode("bots")}
+            className="glass rounded-2xl p-5 flex flex-col items-center gap-3 tap-scale hover:bg-white/[0.04] transition-colors group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-[#FFD700]/10 border border-[#FFD700]/20 flex items-center justify-center group-hover:border-[#FFD700]/30 transition-colors">
+              <Bot size={24} className="text-[#FFD700]" />
+            </div>
+            <div className="text-center">
+              <div className="text-sm font-bold text-[#dae2fd]" style={{ fontFamily: "var(--font-sora)" }}>vs Bots</div>
+              <div className="text-[10px] text-[#ccc3d8]/40 mt-0.5" style={{ fontFamily: "var(--font-hanken)" }}>Practice mode</div>
+            </div>
+          </button>
+          <button
+            onClick={() => setMode("create")}
+            className="glass rounded-2xl p-5 flex flex-col items-center gap-3 tap-scale hover:bg-white/[0.04] transition-colors group relative overflow-hidden"
+          >
+            <div className="relative w-12 h-12 rounded-xl bg-[#7c3aed]/15 border border-[#7c3aed]/25 flex items-center justify-center group-hover:border-[#7c3aed]/40 transition-colors">
+              <Users size={24} className="text-[#d2bbff]" />
+            </div>
+            <div className="relative text-center">
+              <div className="text-sm font-bold text-[#dae2fd]" style={{ fontFamily: "var(--font-sora)" }}>Friends</div>
+              <div className="text-[10px] text-[#ccc3d8]/40 mt-0.5" style={{ fontFamily: "var(--font-hanken)" }}>Private room</div>
+            </div>
+          </button>
+        </div>
+
+        {/* Active Squads */}
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-[11px] text-[#ccc3d8]/40 uppercase tracking-widest" style={{ fontFamily: "var(--font-jetbrains)" }}>
+            Active Squads
+          </h3>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#5ce0a0]/10 border border-[#5ce0a0]/20">
+            <div className="w-1.5 h-1.5 rounded-full bg-[#5ce0a0] animate-pulse" />
+            <span className="text-[10px] text-[#5ce0a0] font-semibold" style={{ fontFamily: "var(--font-jetbrains)" }}>3 LIVE</span>
+          </div>
+        </div>
+
+        {[
+          { id: 1, name: "Vanguard Elite", members: "3/4", initial: "V", color: "#7c3aed", joinable: true },
+          { id: 2, name: "Neon Syndicate", members: "4/4", initial: "N", color: "#4cd7f6", joinable: false },
+          { id: 3, name: "Void Walkers", members: "2/4", initial: "W", color: "#5ce0a0", joinable: true },
+        ].map((squad) => (
+          <div key={squad.id} className="glass rounded-2xl overflow-hidden mb-3 tap-scale hover:bg-white/[0.03] transition-colors">
+            <div className="h-16 relative" style={{ backgroundColor: `${squad.color}15` }}>
+            </div>
+            <div className="px-4 pb-4 -mt-6 relative z-10 flex items-end justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-base font-bold" style={{ backgroundColor: `${squad.color}20`, border: `1px solid ${squad.color}40`, color: squad.color, fontFamily: "var(--font-sora)" }}>
+                  {squad.initial}
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-[#dae2fd]" style={{ fontFamily: "var(--font-sora)" }}>{squad.name}</div>
+                  <div className="text-[10px] text-[#ccc3d8]/40" style={{ fontFamily: "var(--font-jetbrains)" }}>{squad.members} members</div>
+                </div>
+              </div>
+              <button className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 ${squad.joinable ? "bg-[#7c3aed] text-white shadow-[0_4px_16px_rgba(124,58,237,0.3)]" : "bg-[#222a3d] text-[#ccc3d8]/30 cursor-not-allowed"}`} style={{ fontFamily: "var(--font-jetbrains)" }} disabled={!squad.joinable}>
+                {squad.joinable ? <><UserPlus size={13} /> JOIN</> : "FULL"}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  /* ─── CREATE / JOIN / BOTS ─── */
+  return (
+    <div className="px-4 max-w-sm mx-auto animate-slide-up">
+      <button onClick={reset} className="flex items-center gap-2 text-sm text-[#ccc3d8]/60 hover:text-[#d2bbff] transition-colors mb-6 tap-scale" style={{ fontFamily: "var(--font-hanken)" }}>
+        <ArrowLeft size={16} />
+        Back
+      </button>
+
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-[#dae2fd]" style={{ fontFamily: "var(--font-sora)" }}>
+          {mode === "create" ? "Create Room" : mode === "bots" ? "Practice vs Bot" : "Join Room"}
+        </h2>
+        <p className="text-sm text-[#ccc3d8]/50 mt-1" style={{ fontFamily: "var(--font-hanken)" }}>
+          {mode === "create" ? "Share the code with your friend" : mode === "bots" ? "Play solo to sharpen your skills" : "Enter the code your friend shared"}
+        </p>
+      </div>
+
+      {/* Name */}
+      <div className="mb-4">
+        <label htmlFor="clan-name" className="block text-[11px] text-[#ccc3d8]/50 uppercase tracking-widest mb-2" style={{ fontFamily: "var(--font-jetbrains)" }}>
+          Your Name
+        </label>
+        <input
+          id="clan-name"
+          ref={nameRef}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            if (mode === "join") { if (canJoin) handleJoin(); }
+            else if (canCreate) handleCreate();
+          }}
+          maxLength={DISPLAY_NAME_MAX_LENGTH}
+          autoComplete="nickname"
+          placeholder="Enter your name"
+          className="w-full rounded-xl border border-[#4a4455]/60 bg-[#171f33]/80 px-4 py-3.5 text-[#dae2fd] outline-none placeholder:text-[#ccc3d8]/30 focus:border-[#7c3aed]/60 focus:shadow-[0_0_0_3px_rgba(124,58,237,0.1)] transition-all"
+          style={{ fontFamily: "var(--font-hanken)" }}
+        />
+      </div>
+
+      {/* Create */}
+      {mode === "create" && (
+        <button onClick={handleCreate} disabled={!canCreate} className="w-full rounded-xl bg-[#7c3aed] py-4 text-sm font-bold text-white shadow-[0_4px_20px_rgba(124,58,237,0.3)] hover:shadow-[0_6px_28px_rgba(124,58,237,0.4)] transition-all disabled:opacity-30 disabled:shadow-none flex items-center justify-center gap-2 tap-scale" style={{ fontFamily: "var(--font-sora)" }}>
+          {busy ? (
+            <span className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Creating...
+            </span>
+          ) : (
+            <><Zap size={18} /> Create Room</>
+          )}
+        </button>
+      )}
+
+      {/* Join */}
+      {mode === "join" && (
+        <div>
+          <label htmlFor="room-code" className="block text-[11px] text-[#ccc3d8]/50 uppercase tracking-widest mb-2" style={{ fontFamily: "var(--font-jetbrains)" }}>
+            Room Code
+          </label>
+          <form onSubmit={(e) => { e.preventDefault(); if (canJoin) handleJoin(); }} className="flex gap-3">
+            <input
+              id="room-code"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              maxLength={ROOM_CODE_LENGTH}
+              placeholder="ABCD"
+              aria-label="Room code"
+              autoCapitalize="characters"
+              autoComplete="off"
+              className="flex-1 rounded-xl border border-[#4a4455]/60 bg-[#171f33]/80 px-4 py-3.5 text-center text-xl tracking-[0.4em] text-[#dae2fd] outline-none placeholder:tracking-[0.4em] placeholder:text-[#ccc3d8]/20 focus:border-[#4cd7f6]/60 focus:shadow-[0_0_0_3px_rgba(76,215,246,0.1)] transition-all"
+              style={{ fontFamily: "var(--font-jetbrains)" }}
+            />
+            <button ref={joinRef} type="submit" disabled={!canJoin} className="shrink-0 rounded-xl bg-[#4cd7f6] px-6 py-3.5 text-sm font-bold text-[#003640] shadow-[0_4px_16px_rgba(76,215,246,0.25)] hover:shadow-[0_6px_24px_rgba(76,215,246,0.35)] transition-all disabled:opacity-30 tap-scale" style={{ fontFamily: "var(--font-sora)" }}>
+              Join
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Bots: instant start */}
+      {mode === "bots" && (
+        <button onClick={() => { if (!trimmedName) return; storeDisplayName(trimmedName); getSocket("heist").emit("room:create", { playerId: getPlayerId(), displayName: trimmedName }); setBusy(true); }} disabled={!canCreate} className="w-full rounded-xl bg-[#FFD700] py-4 text-sm font-bold text-[#1a1a1a] shadow-[0_4px_20px_rgba(255,215,0,0.25)] hover:shadow-[0_6px_28px_rgba(255,215,0,0.35)] transition-all disabled:opacity-30 disabled:shadow-none flex items-center justify-center gap-2 tap-scale" style={{ fontFamily: "var(--font-sora)" }}>
+          {busy ? (
+            <span className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-[#1a1a1a]/30 border-t-[#1a1a1a] rounded-full animate-spin" />
+              Starting...
+            </span>
+          ) : (
+            <><Bot size={18} /> Start Practice</>
+          )}
+        </button>
+      )}
+
+      {/* Divider + switch */}
+      {mode !== "bots" && (
+        <>
+          <div className="flex items-center gap-3 my-6">
+            <span className="h-px flex-1 bg-white/[0.06]" />
+            <span className="text-[11px] text-[#ccc3d8]/30" style={{ fontFamily: "var(--font-jetbrains)" }}>OR</span>
+            <span className="h-px flex-1 bg-white/[0.06]" />
+          </div>
+          <button onClick={() => { setMode(mode === "create" ? "join" : "create"); setError(null); }} className="w-full rounded-xl border border-white/[0.06] py-3 text-sm font-medium text-[#ccc3d8]/60 hover:text-[#d2bbff] hover:border-[#7c3aed]/20 transition-all flex items-center justify-center gap-2 tap-scale" style={{ fontFamily: "var(--font-hanken)" }}>
+            {mode === "create" ? <><UserPlus size={16} /> Join with Code</> : <><Swords size={16} /> Create Instead</>}
+          </button>
+        </>
+      )}
+
+      {error && (
+        <div className="mt-4 rounded-xl bg-[#ff8a85]/10 border border-[#ff8a85]/20 p-3 animate-slide-up">
+          <p className="text-sm text-[#ff8a85] text-center" role="alert" style={{ fontFamily: "var(--font-hanken)" }}>
+            {error}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
