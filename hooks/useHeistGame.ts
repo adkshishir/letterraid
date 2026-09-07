@@ -5,7 +5,7 @@ import { getSocket } from "@/lib/socket";
 import type {
   GameErrorPayload,
   HeistClaimedPayload,
-  HeistResult,
+  HeistGameOverPayload,
   HeistStateView,
 } from "@/lib/types";
 
@@ -16,7 +16,7 @@ export interface HeistGame {
   state: HeistStateView | null;
   /** The claim that just landed, for the board's flash of movement. */
   lastClaim: HeistClaimedPayload | null;
-  gameOver: HeistResult | null;
+  gameOver: HeistGameOverPayload | null;
   /** Keyed so the same message twice in a row still re-triggers the shake. */
   error: { message: string; key: number } | null;
   claim: (word: string) => void;
@@ -36,7 +36,7 @@ export function useHeistGame(
 ): HeistGame {
   const [state, setState] = useState<HeistStateView | null>(null);
   const [lastClaim, setLastClaim] = useState<HeistClaimedPayload | null>(null);
-  const [gameOver, setGameOver] = useState<HeistResult | null>(null);
+  const [gameOver, setGameOver] = useState<HeistGameOverPayload | null>(null);
   const [error, setError] = useState<{ message: string; key: number } | null>(
     null,
   );
@@ -49,7 +49,7 @@ export function useHeistGame(
 
     const onState = (next: HeistStateView) => setState(next);
     const onClaimed = (payload: HeistClaimedPayload) => setLastClaim(payload);
-    const onGameOver = (payload: HeistResult) => setGameOver(payload);
+    const onGameOver = (payload: HeistGameOverPayload) => setGameOver(payload);
 
     const onError = (payload: GameErrorPayload) => {
       setError({ message: payload.message, key: Date.now() });

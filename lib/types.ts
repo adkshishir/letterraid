@@ -94,6 +94,16 @@ export interface HeistResult {
   tied: boolean;
 }
 
+/**
+ * The `heist:game-over` socket payload — `HeistResult` plus the trophy swing
+ * from this round. `trophyDeltas` is only present for a match between two
+ * logged-in players; a game where the room never resolved to real `Player`
+ * rows (anonymous play) finishes without ranking, so the field is absent.
+ */
+export interface HeistGameOverPayload extends HeistResult {
+  trophyDeltas?: Record<string, number> | null;
+}
+
 export interface HeistStateView {
   status: HeistStatus;
   pool: string[];

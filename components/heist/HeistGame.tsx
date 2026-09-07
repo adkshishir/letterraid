@@ -61,6 +61,7 @@ export default function HeistGame({
         playerId={playerId}
         nameFor={nameFor}
         onRestart={game.restart}
+        trophyDeltas={game.gameOver?.trophyDeltas}
       />
     );
   }
@@ -258,11 +259,13 @@ function Result({
   playerId,
   nameFor,
   onRestart,
+  trophyDeltas,
 }: {
   state: HeistStateView;
   playerId: string | null;
   nameFor: (id: string) => string;
   onRestart: () => void;
+  trophyDeltas?: Record<string, number> | null;
 }) {
   const result = state.result!;
   const won = result.winnerId === playerId;
@@ -283,23 +286,40 @@ function Result({
         />
         <h2 className="mt-4 text-2xl font-bold text-ink">{headline}</h2>
         <div className="mt-4 flex items-center justify-center gap-6">
-          {result.scores.map((score) => (
-            <div key={score.playerId} className="flex flex-col items-center">
-              <span className="text-xs uppercase tracking-widest text-muted">
-                {nameFor(score.playerId)}
-              </span>
-              <span
-                className={`font-mono text-4xl font-extrabold ${
-                  score.playerId === playerId ? "text-accent" : "text-ink"
-                }`}
-              >
-                {score.score}
-              </span>
-              <span className="text-xs text-muted">
-                {score.words} word{score.words === 1 ? "" : "s"}
-              </span>
-            </div>
-          ))}
+          {result.scores.map((score) => {
+            const delta = trophyDeltas?.[score.playerId];
+            return (
+              <div key={score.playerId} className="flex flex-col items-center">
+                <span className="text-xs uppercase tracking-widest text-muted">
+                  {nameFor(score.playerId)}
+                </span>
+                <span
+                  className={`font-mono text-4xl font-extrabold ${
+                    score.playerId === playerId ? "text-accent" : "text-ink"
+                  }`}
+                >
+                  {score.score}
+                </span>
+                <span className="text-xs text-muted">
+                  {score.words} word{score.words === 1 ? "" : "s"}
+                </span>
+                {typeof delta === "number" && (
+                  <span
+                    className={`mt-1 font-mono text-xs font-bold ${
+                      delta > 0
+                        ? "text-emerald-500"
+                        : delta < 0
+                          ? "text-red-400"
+                          : "text-muted"
+                    }`}
+                  >
+                    {delta > 0 ? "+" : ""}
+                    {delta} 🏆
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

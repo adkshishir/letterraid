@@ -144,3 +144,42 @@ export interface ActiveMatch {
 export async function getActiveMatch(): Promise<{ match: ActiveMatch | null }> {
   return api("/match/active");
 }
+
+export interface MatchHistoryEntry {
+  matchId: string;
+  opponentName: string;
+  result: "W" | "L" | "T";
+  score: number;
+  words: number;
+  endedAt: string;
+}
+
+export async function fetchMatchHistory(limit = 10): Promise<MatchHistoryEntry[]> {
+  const { matches } = await api<{ matches: MatchHistoryEntry[] }>(
+    `/match/history?limit=${limit}`,
+  );
+  return matches;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+  trophies: number;
+  level: number;
+}
+
+export interface MyRank {
+  rank: number;
+  trophies: number;
+  totalPlayers: number;
+}
+
+export async function fetchLeaderboard(limit = 50): Promise<LeaderboardEntry[]> {
+  return api(`/leaderboard?limit=${limit}`);
+}
+
+export async function fetchMyRank(): Promise<MyRank> {
+  return api("/leaderboard/me");
+}

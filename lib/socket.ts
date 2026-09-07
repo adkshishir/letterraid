@@ -1,5 +1,5 @@
 import { io, Socket } from "socket.io-client";
-import { getToken } from "./auth";
+import { getToken, getStoredPlayer } from "./auth";
 
 /**
  * LetterRaid runs one Socket.io namespace per game (see docs/SOCKET_EVENTS.md),
@@ -15,12 +15,20 @@ const BACKEND_URL =
 /**
  * Stable per-browser player identity.
  *
- * localStorage (not sessionStorage) so this survives a closed tab or a killed
- * mobile browser — a player who drops mid-round is recognised and put back in
- * their own seat when they return. Socket IDs change on every reconnect and
- * must never be used for identity.
+ * A logged-in player uses their real (Postgres) player id, so a room seat
+ * lines up with the `Match`/`Player` rows the backend already created for
+ * them — matchmaking pre-seeds a room's seats with the authenticated
+ * player id from `/match/queue`, and the socket join has to reconnect into
+ * that same seat rather than create a third, ghost player. Signed-out play
+ * (the legacy marketing `/heist` route) falls back to a random UUID kept in
+ * localStorage, which survives a closed tab or a killed mobile browser the
+ * same way. Socket IDs change on every reconnect and must never be used for
+ * identity.
  */
 export function getPlayerId(): string {
+  const player = getStoredPlayer();
+  if (player?.id) return player.id;
+
   let pid = localStorage.getItem("playerId");
   if (!pid) {
     pid = crypto.randomUUID();
