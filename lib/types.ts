@@ -16,10 +16,21 @@ export type RoomErrorCode =
   | "INVALID_CODE"
   | "PROFANITY_REJECTED";
 
+/** "2v2" is fixed-size teams of two, not general N-player support. */
+export type RoomMode = "1v1" | "2v2";
+
+export const DEFAULT_ROOM_MODE: RoomMode = "1v1";
+
+export function maxPlayersForMode(mode: RoomMode): number {
+  return mode === "2v2" ? 4 : 2;
+}
+
 export interface Player {
   id: string;
   displayName: string;
   connected: boolean;
+  /** Which side of a 2v2 room (0 or 1) this player is on; null in a 1v1 room. */
+  team: number | null;
 }
 
 export interface RoomError {
@@ -32,12 +43,14 @@ export interface RoomError {
 export interface RoomCreatedPayload {
   roomCode: string;
   players: Player[];
+  mode: RoomMode;
 }
 
 export interface RoomJoinedPayload {
   roomCode: string;
   players: Player[];
   reconnected: boolean;
+  mode: RoomMode;
 }
 
 export interface PlayerJoinedPayload {
@@ -58,6 +71,8 @@ export interface RoomLookup {
   game: GameId;
   playerCount: number;
   joinable: boolean;
+  mode: RoomMode;
+  maxPlayers: number;
 }
 
 export const GAME_LABELS: Record<GameId, string> = {
@@ -85,6 +100,15 @@ export interface HeistScore {
   playerId: string;
   score: number;
   words: number;
+  /** Mirrors the player's `team` — null outside a 2v2 room. */
+  team: number | null;
+}
+
+/** A 2v2 team's combined total. Absent (null on `HeistResult`) in a 1v1 game. */
+export interface HeistTeamScore {
+  team: number;
+  score: number;
+  playerIds: string[];
 }
 
 export interface HeistResult {
@@ -92,6 +116,10 @@ export interface HeistResult {
   /** Null on a draw. */
   winnerId: string | null;
   tied: boolean;
+  /** Null in a 1v1 game. */
+  teamScores: HeistTeamScore[] | null;
+  /** Null in a 1v1 game, or on a 2v2 tie. */
+  winningTeam: number | null;
 }
 
 /**

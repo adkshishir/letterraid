@@ -3,33 +3,42 @@
 import { useState } from "react";
 import { Share2 } from "lucide-react";
 import PlayerPair from "@/components/PlayerPair";
+import TeamRoster from "@/components/TeamRoster";
 import ShareModal from "@/components/ShareModal";
-import type { GameId, Player } from "@/lib/types";
-import { GAME_LABELS } from "@/lib/types";
+import type { GameId, Player, RoomMode } from "@/lib/types";
+import { GAME_LABELS, maxPlayersForMode } from "@/lib/types";
 
 /**
- * The waiting room, shown until both players are present.
+ * The waiting room, shown until the room is full.
  *
  * Scoring and competitive framing are deliberately absent here (DESIGN.md):
- * this screen's whole job is "your person is on the way".
+ * this screen's whole job is "your people are on the way".
  */
 export default function Lobby({
   game,
   code,
   players,
   meId,
+  mode,
 }: {
   game: GameId;
   code: string;
   players: Player[];
   meId: string | null;
+  /** Null for the brief window before the server's `room:joined` confirms it. */
+  mode: RoomMode | null;
 }) {
   const [showShare, setShowShare] = useState(false);
-  const waiting = players.length < 2;
+  const maxPlayers = mode ? maxPlayersForMode(mode) : 2;
+  const waiting = players.length < maxPlayers;
 
   return (
     <div className="flex flex-col items-center gap-8 py-8">
-      <PlayerPair players={players} meId={meId} />
+      {mode === "2v2" ? (
+        <TeamRoster players={players} meId={meId} />
+      ) : (
+        <PlayerPair players={players} meId={meId} />
+      )}
 
       {waiting ? (
         <>
@@ -47,12 +56,14 @@ export default function Lobby({
             className="pressable flex items-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-semibold text-on-fill"
           >
             <Share2 size={16} />
-            Invite your partner
+            {mode === "2v2" ? "Invite more players" : "Invite your partner"}
           </button>
         </>
       ) : (
         <div className="text-center">
-          <p className="text-lg font-semibold text-ink">You&apos;re both here.</p>
+          <p className="text-lg font-semibold text-ink">
+            {mode === "2v2" ? "Everyone's here." : "You're both here."}
+          </p>
           <p className="mt-2 text-sm text-muted">Starting {GAME_LABELS[game]}…</p>
         </div>
       )}

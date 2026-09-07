@@ -11,6 +11,7 @@ import type {
   PlayerLeftPayload,
   RoomError,
   RoomJoinedPayload,
+  RoomMode,
 } from "@/lib/types";
 
 export type RoomStatus = "joining" | "in-room" | "error";
@@ -21,6 +22,8 @@ interface UseRoomResult {
   error: RoomError | null;
   /** The local player's id, so callers can tell "you" from "them". */
   playerId: string | null;
+  /** Null until the first `room:joined` lands. */
+  mode: RoomMode | null;
   leave: () => void;
   retry: () => void;
 }
@@ -42,6 +45,7 @@ export function useRoom(
   const [status, setStatus] = useState<RoomStatus>("joining");
   const [players, setPlayers] = useState<Player[]>([]);
   const [error, setError] = useState<RoomError | null>(null);
+  const [mode, setMode] = useState<RoomMode | null>(null);
   const [attempt, setAttempt] = useState(0);
 
   // Render-relevant (it's what distinguishes "you" from your partner), so it
@@ -61,6 +65,7 @@ export function useRoom(
 
     const onJoined = (payload: RoomJoinedPayload) => {
       setPlayers(payload.players);
+      setMode(payload.mode);
       setError(null);
       setStatus("in-room");
       if (displayName) storeDisplayName(displayName);
@@ -124,5 +129,5 @@ export function useRoom(
     setAttempt((n) => n + 1);
   }, []);
 
-  return { status, players, error, playerId, leave, retry };
+  return { status, players, error, playerId, mode, leave, retry };
 }

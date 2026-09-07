@@ -6,7 +6,8 @@ import { Users, UserPlus, ArrowLeft, Zap, Swords } from "lucide-react";
 import { getPlayerId, getSocket } from "@/lib/socket";
 import { DISPLAY_NAME_MAX_LENGTH, getStoredDisplayName, storeDisplayName } from "@/lib/player";
 import { useClientValue } from "@/lib/use-client-value";
-import type { RoomCreatedPayload, RoomError } from "@/lib/types";
+import type { RoomCreatedPayload, RoomError, RoomMode } from "@/lib/types";
+import { DEFAULT_ROOM_MODE } from "@/lib/types";
 
 const ROOM_CODE_LENGTH = 4;
 
@@ -18,6 +19,7 @@ export default function ClanView() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<"idle" | "create" | "join">("idle");
+  const [roomMode, setRoomMode] = useState<RoomMode>(DEFAULT_ROOM_MODE);
 
   const nameRef = useRef<HTMLInputElement>(null);
   const joinRef = useRef<HTMLButtonElement>(null);
@@ -65,6 +67,7 @@ export default function ClanView() {
     getSocket("heist").emit("room:create", {
       playerId: getPlayerId(),
       displayName: trimmedName,
+      mode: roomMode,
     });
   };
 
@@ -73,7 +76,7 @@ export default function ClanView() {
     router.push(`/room/${normalizedCode}`);
   };
 
-  const reset = () => { setMode("idle"); setError(null); setCode(""); setBusy(false); };
+  const reset = () => { setMode("idle"); setError(null); setCode(""); setBusy(false); setRoomMode(DEFAULT_ROOM_MODE); };
 
   /* ─── IDLE: play with a friend, or peek at what's next ─── */
   if (mode === "idle") {
@@ -161,6 +164,39 @@ export default function ClanView() {
           style={{ fontFamily: "var(--font-hanken)" }}
         />
       </div>
+
+      {/* Team size — a joiner inherits whatever the room already is, so this
+          choice only exists on the create side. */}
+      {mode === "create" && (
+        <div className="mb-6">
+          <label className="block text-[11px] text-[#ccc3d8]/50 uppercase tracking-widest mb-2" style={{ fontFamily: "var(--font-jetbrains)" }}>
+            Team Size
+          </label>
+          <div className="flex rounded-xl border border-[#4a4455]/60 bg-[#171f33]/80 p-1">
+            {(["1v1", "2v2"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setRoomMode(option)}
+                aria-pressed={roomMode === option}
+                className={`flex-1 rounded-lg py-2.5 text-sm font-bold transition-all tap-scale ${
+                  roomMode === option
+                    ? "bg-[#7c3aed] text-white shadow-[0_2px_12px_rgba(124,58,237,0.3)]"
+                    : "text-[#ccc3d8]/50 hover:text-[#d2bbff]"
+                }`}
+                style={{ fontFamily: "var(--font-sora)" }}
+              >
+                {option === "1v1" ? "1v1" : "2v2 Teams"}
+              </button>
+            ))}
+          </div>
+          {roomMode === "2v2" && (
+            <p className="mt-2 text-xs text-[#ccc3d8]/40" style={{ fontFamily: "var(--font-hanken)" }}>
+              2v2 pairs you with the next person who joins your code.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Create */}
       {mode === "create" && (

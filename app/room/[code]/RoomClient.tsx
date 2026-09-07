@@ -12,7 +12,7 @@ import { getStoredDisplayName } from "@/lib/player";
 import { lookupRoom } from "@/lib/rooms";
 import { useClientValue } from "@/lib/use-client-value";
 import type { GameId, Player } from "@/lib/types";
-import { GAME_LABELS } from "@/lib/types";
+import { GAME_LABELS, maxPlayersForMode } from "@/lib/types";
 
 type Lookup =
   | { state: "loading" }
@@ -50,11 +50,14 @@ export default function RoomClient({ code }: { code: string }) {
   }, [code]);
 
   const game = lookup.state === "found" ? lookup.game : null;
-  const { status, players, error, playerId, leave, retry } = useRoom(
+  const { status, players, error, playerId, mode, leave, retry } = useRoom(
     game,
     code,
     displayName,
   );
+  // Falls back to 2 (1v1's size) for the brief window before `room:joined`
+  // has told us the room's actual mode.
+  const maxPlayers = mode ? maxPlayersForMode(mode) : 2;
 
   const handleLeave = () => {
     leave();
@@ -117,12 +120,13 @@ export default function RoomClient({ code }: { code: string }) {
           </Centered>
         ) : status === "joining" ? (
           <Centered>Joining…</Centered>
-        ) : players.length < 2 ? (
+        ) : players.length < maxPlayers ? (
           <Lobby
             game={lookup.game}
             code={code}
             players={players}
             meId={playerId}
+            mode={mode}
           />
         ) : (
           <Game roomCode={code} playerId={playerId} players={players} />

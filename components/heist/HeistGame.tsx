@@ -6,6 +6,7 @@ import RoundTimer from "@/components/RoundTimer";
 import { useHeistGame } from "@/hooks/useHeistGame";
 import type {
   HeistClaimedPayload,
+  HeistScore,
   HeistStateView,
   HeistWordView,
   Player,
@@ -59,6 +60,7 @@ export default function HeistGame({
       <Result
         state={state}
         playerId={playerId}
+        players={players}
         nameFor={nameFor}
         onRestart={game.restart}
         trophyDeltas={game.gameOver?.trophyDeltas}
@@ -66,26 +68,58 @@ export default function HeistGame({
     );
   }
 
+  // A 2v2 room hands every player a `team` (0 or 1); a 1v1 room leaves it null
+  // for everyone. That's the only signal we need to switch from "you vs them"
+  // to "your team vs theirs" — no separate flag to keep in sync.
+  const hasTeams = players.some((p) => p.team !== null);
+  const teamFor = (id: string) => players.find((p) => p.id === id)?.team ?? null;
+  const myTeam = playerId ? teamFor(playerId) : null;
+
   const mine = state.words.filter((w) => w.ownerId === playerId);
   const theirs = state.words.filter((w) => w.ownerId !== playerId);
+  const myTeamWords = state.words.filter((w) => teamFor(w.ownerId) === myTeam);
+  const theirTeamWords = state.words.filter(
+    (w) => teamFor(w.ownerId) !== myTeam,
+  );
   const scoreFor = (id: string | null) =>
     state.scores.find((s) => s.playerId === id)?.score ?? 0;
   const opponentId = players.find((p) => p.id !== playerId)?.id ?? null;
 
   return (
     <div className="flex flex-col gap-5 py-5">
-      <div className="flex items-center justify-between">
-        <Tally label="You" score={scoreFor(playerId)} mine />
-        <RoundTimer
-          secondsLeft={secondsLeft}
-          totalSeconds={HEIST_ROUND_SECONDS}
-          size="sm"
-        />
-        <Tally
-          label={opponentId ? nameFor(opponentId) : "Them"}
-          score={scoreFor(opponentId)}
-        />
-      </div>
+      {hasTeams ? (
+        <div className="flex items-center justify-between">
+          <TeamTally
+            title="Your team"
+            scores={state.scores.filter((s) => s.team === myTeam)}
+            nameFor={nameFor}
+            mine
+          />
+          <RoundTimer
+            secondsLeft={secondsLeft}
+            totalSeconds={HEIST_ROUND_SECONDS}
+            size="sm"
+          />
+          <TeamTally
+            title="Their team"
+            scores={state.scores.filter((s) => s.team !== myTeam)}
+            nameFor={nameFor}
+          />
+        </div>
+      ) : (
+        <div className="flex items-center justify-between">
+          <Tally label="You" score={scoreFor(playerId)} mine />
+          <RoundTimer
+            secondsLeft={secondsLeft}
+            totalSeconds={HEIST_ROUND_SECONDS}
+            size="sm"
+          />
+          <Tally
+            label={opponentId ? nameFor(opponentId) : "Them"}
+            score={scoreFor(opponentId)}
+          />
+        </div>
+      )}
 
       <Pool letters={state.pool} />
 
@@ -134,11 +168,20 @@ export default function HeistGame({
       </form>
 
       <div className="grid grid-cols-2 gap-3">
-        <WordColumn title="Yours" words={mine} mine />
-        <WordColumn
-          title={opponentId ? nameFor(opponentId) : "Theirs"}
-          words={theirs}
-        />
+        {hasTeams ? (
+          <>
+            <WordColumn title="Your team's words" words={myTeamWords} mine />
+            <WordColumn title="Their words" words={theirTeamWords} />
+          </>
+        ) : (
+          <>
+            <WordColumn title="Yours" words={mine} mine />
+            <WordColumn
+              title={opponentId ? nameFor(opponentId) : "Theirs"}
+              words={theirs}
+            />
+          </>
+        )}
       </div>
     </div>
   );
@@ -165,6 +208,45 @@ function Tally({
       >
         {score}
       </span>
+    </div>
+  );
+}
+
+/**
+ * The 2v2 header tally: a combined team total up top (the number that
+ * matters mid-race), with each teammate's individual score nested under it
+ * rather than dropped — this is the same "you vs them" number the 1v1
+ * `Tally` shows, just summed across a team of two.
+ */
+function TeamTally({
+  title,
+  scores,
+  nameFor,
+  mine = false,
+}: {
+  title: string;
+  scores: HeistScore[];
+  nameFor: (id: string) => string;
+  mine?: boolean;
+}) {
+  const total = scores.reduce((sum, s) => sum + s.score, 0);
+  return (
+    <div className={`flex flex-col ${mine ? "items-start" : "items-end"}`}>
+      <span className="text-xs uppercase tracking-widest text-muted">
+        {title}
+      </span>
+      <span
+        className={`font-mono text-2xl font-bold ${mine ? "text-accent" : "text-ink"}`}
+      >
+        {total}
+      </span>
+      <div className={`mt-0.5 flex flex-col ${mine ? "items-start" : "items-end"}`}>
+        {scores.map((s) => (
+          <span key={s.playerId} className="text-[10px] text-muted">
+            {nameFor(s.playerId)} · {s.score}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -257,24 +339,56 @@ function WordColumn({
 function Result({
   state,
   playerId,
+  players,
   nameFor,
   onRestart,
   trophyDeltas,
 }: {
   state: HeistStateView;
   playerId: string | null;
+  players: Player[];
   nameFor: (id: string) => string;
   onRestart: () => void;
   trophyDeltas?: Record<string, number> | null;
 }) {
   const result = state.result!;
-  const won = result.winnerId === playerId;
+  const hasTeams = result.teamScores != null;
+  const myTeam = playerId
+    ? (players.find((p) => p.id === playerId)?.team ?? null)
+    : null;
+  const won = hasTeams
+    ? result.winningTeam === myTeam
+    : result.winnerId === playerId;
 
   const headline = result.tied
     ? "Dead level."
     : won
-      ? "You had it."
-      : `${nameFor(result.winnerId ?? "")} had it.`;
+      ? hasTeams
+        ? "Your team had it."
+        : "You had it."
+      : hasTeams
+        ? "Their team had it."
+        : `${nameFor(result.winnerId ?? "")} had it.`;
+
+  // "Team A wins, 14–9" / "Dead level, 11–11" — the same number the header
+  // was already showing live, just confirmed by the server's final tally.
+  const teamScoreLine = (() => {
+    if (!result.teamScores) return null;
+    const teamA = result.teamScores.find((t) => t.team === 0)?.score ?? 0;
+    const teamB = result.teamScores.find((t) => t.team === 1)?.score ?? 0;
+    if (result.tied) return `Dead level, ${teamA}–${teamB}`;
+    const winnerLabel = result.winningTeam === 0 ? "Team A" : "Team B";
+    const [hi, lo] = teamA >= teamB ? [teamA, teamB] : [teamB, teamA];
+    return `${winnerLabel} wins, ${hi}–${lo}`;
+  })();
+
+  const teamFor = (id: string) => players.find((p) => p.id === id)?.team ?? null;
+  const myWords = state.words.filter((w) => w.ownerId === playerId);
+  const theirWords = state.words.filter((w) => w.ownerId !== playerId);
+  const myTeamWords = state.words.filter((w) => teamFor(w.ownerId) === myTeam);
+  const theirTeamWords = state.words.filter(
+    (w) => teamFor(w.ownerId) !== myTeam,
+  );
 
   return (
     <div className="flex flex-col gap-6 py-8">
@@ -285,6 +399,9 @@ function Result({
           aria-hidden
         />
         <h2 className="mt-4 text-2xl font-bold text-ink">{headline}</h2>
+        {teamScoreLine && (
+          <p className="mt-1 text-sm text-muted">{teamScoreLine}</p>
+        )}
         <div className="mt-4 flex items-center justify-center gap-6">
           {result.scores.map((score) => {
             const delta = trophyDeltas?.[score.playerId];
@@ -324,15 +441,17 @@ function Result({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <WordColumn
-          title="Yours"
-          words={state.words.filter((w) => w.ownerId === playerId)}
-          mine
-        />
-        <WordColumn
-          title="Theirs"
-          words={state.words.filter((w) => w.ownerId !== playerId)}
-        />
+        {hasTeams ? (
+          <>
+            <WordColumn title="Your team's words" words={myTeamWords} mine />
+            <WordColumn title="Their words" words={theirTeamWords} />
+          </>
+        ) : (
+          <>
+            <WordColumn title="Yours" words={myWords} mine />
+            <WordColumn title="Theirs" words={theirWords} />
+          </>
+        )}
       </div>
 
       <button

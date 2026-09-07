@@ -1,5 +1,6 @@
 "use client";
 
+import { Avatar, initials } from "@/components/Avatar";
 import type { Player } from "@/lib/types";
 
 /**
@@ -9,40 +10,8 @@ import type { Player } from "@/lib/types";
  * Inherited from Cahoots' DESIGN.md pillar 3: even in a head-to-head game the
  * lobby should read as "you two" rather than a Player 1 / Player 2 roster, and
  * the empty seat should feel like someone is expected rather than like a slot
- * to be filled.
+ * to be filled. `TeamRoster` extends this same idea to 2v2.
  */
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
-}
-
-function Avatar({
-  label,
-  connected,
-  pending,
-}: {
-  label: string;
-  connected: boolean;
-  pending?: boolean;
-}) {
-  return (
-    <div
-      className={`flex h-16 w-16 items-center justify-center rounded-full border-2 text-lg font-bold transition-colors ${
-        pending
-          ? "border-dashed border-border-strong text-muted"
-          : connected
-            ? // A solid brand fill rather than the vivid gradient: initials are
-              // text, and white over the gradient's pink end is only 2.5:1.
-              "border-transparent bg-brand text-on-fill"
-            : // Disconnected: still present (their seat is held), visibly dimmed.
-              "border-border bg-surface text-muted opacity-60"
-      }`}
-    >
-      {label}
-    </div>
-  );
-}
 
 export default function PlayerPair({
   players,
