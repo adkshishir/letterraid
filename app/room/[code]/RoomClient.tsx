@@ -23,6 +23,8 @@ interface GameProps {
   roomCode: string;
   playerId: string | null;
   players: Player[];
+  /** Leaves the room and returns to the homepage. */
+  onGoHome: () => void;
 }
 
 const GAMES: Record<GameId, React.ComponentType<GameProps>> = {
@@ -62,6 +64,14 @@ export default function RoomClient({ code }: { code: string }) {
   const handleLeave = () => {
     leave();
     router.push(game ? `/${game}` : "/");
+  };
+
+  // Distinct from `handleLeave` (which returns to this game's own landing
+  // page): "Back to Home" from the result screen always goes to "/", the
+  // same destination the room-not-found/room-full states already link to.
+  const handleGoHome = () => {
+    leave();
+    router.push("/");
   };
 
   if (lookup.state === "loading") {
@@ -129,7 +139,12 @@ export default function RoomClient({ code }: { code: string }) {
             mode={mode}
           />
         ) : (
-          <Game roomCode={code} playerId={playerId} players={players} />
+          <Game
+            roomCode={code}
+            playerId={playerId}
+            players={players}
+            onGoHome={handleGoHome}
+          />
         )}
       </main>
 

@@ -24,10 +24,13 @@ export default function HeistGame({
   roomCode,
   playerId,
   players,
+  onGoHome,
 }: {
   roomCode: string;
   playerId: string | null;
   players: Player[];
+  /** Leaves the room and returns to the homepage. */
+  onGoHome: () => void;
 }) {
   const game = useHeistGame(roomCode, playerId);
   const { state } = game;
@@ -63,6 +66,7 @@ export default function HeistGame({
         players={players}
         nameFor={nameFor}
         onRestart={game.restart}
+        onGoHome={onGoHome}
         trophyDeltas={game.gameOver?.trophyDeltas}
       />
     );
@@ -342,6 +346,7 @@ function Result({
   players,
   nameFor,
   onRestart,
+  onGoHome,
   trophyDeltas,
 }: {
   state: HeistStateView;
@@ -349,6 +354,7 @@ function Result({
   players: Player[];
   nameFor: (id: string) => string;
   onRestart: () => void;
+  onGoHome: () => void;
   trophyDeltas?: Record<string, number> | null;
 }) {
   const result = state.result!;
@@ -392,13 +398,22 @@ function Result({
 
   return (
     <div className="flex flex-col gap-6 py-8">
-      <div className="text-center">
+      <div className="relative text-center">
+        {won && <Confetti />}
         <Trophy
           size={36}
-          className={`mx-auto ${won ? "text-accent" : "text-muted"}`}
+          className={`relative mx-auto ${
+            won ? "animate-trophy-burst text-accent" : "text-muted"
+          }`}
           aria-hidden
         />
-        <h2 className="mt-4 text-2xl font-bold text-ink">{headline}</h2>
+        <h2
+          className={`relative mt-4 text-2xl font-bold text-ink ${
+            won ? "text-glow-gold" : ""
+          }`}
+        >
+          {headline}
+        </h2>
         {teamScoreLine && (
           <p className="mt-1 text-sm text-muted">{teamScoreLine}</p>
         )}
@@ -454,13 +469,78 @@ function Result({
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={onRestart}
-        className="pressable mx-auto rounded-full bg-accent px-8 py-3 text-sm font-bold text-on-fill"
-      >
-        Run it back
-      </button>
+      <div className="mx-auto flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onGoHome}
+          className="pressable rounded-full border border-border px-6 py-3 text-sm font-bold text-ink"
+        >
+          Back to Home
+        </button>
+        <button
+          type="button"
+          onClick={onRestart}
+          className="pressable rounded-full bg-accent px-8 py-3 text-sm font-bold text-on-fill"
+        >
+          Run it back
+        </button>
+      </div>
     </div>
   );
 }
+
+/**
+ * A contained confetti burst behind the trophy/headline on a win — not a
+ * full-screen takeover, and it never intercepts clicks (the buttons below
+ * still work immediately). `useState`'s lazy initializer runs exactly once
+ * per mount, which is also exactly once per game-over: `Result` only exists
+ * while `state.status === "complete"`, so a fresh win gets a fresh mount.
+ */
+function Confetti() {
+  const [pieces] = useState(() =>
+    Array.from({ length: 32 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 0.5,
+      duration: 1.4 + Math.random() * 1.1,
+      spin: 220 + Math.random() * 360,
+      size: 5 + Math.random() * 5,
+      round: Math.random() > 0.5,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    })),
+  );
+
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 -top-2 overflow-hidden"
+      aria-hidden
+    >
+      {pieces.map((piece) => (
+        <span
+          key={piece.id}
+          className="animate-confetti-fall absolute top-0"
+          style={{
+            left: `${piece.left}%`,
+            width: piece.size,
+            height: piece.size,
+            backgroundColor: piece.color,
+            borderRadius: piece.round ? "9999px" : "2px",
+            animationDelay: `${piece.delay}s`,
+            animationDuration: `${piece.duration}s`,
+            ["--confetti-spin" as string]: `${piece.spin}deg`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Drawn from the palette already in use around the result screen: the accent
+// used on "you" scores, the brand's cyan, the steal-callout warning color,
+// and the same emerald used for a positive trophy delta above.
+const CONFETTI_COLORS = [
+  "var(--accent)",
+  "var(--brand-2)",
+  "var(--warning)",
+  "#10b981",
+];
