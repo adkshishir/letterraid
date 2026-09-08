@@ -12,6 +12,7 @@ import type {
   RoomError,
   RoomJoinedPayload,
   RoomMode,
+  RoomRosterPayload,
 } from "@/lib/types";
 
 export type RoomStatus = "joining" | "in-room" | "error";
@@ -26,6 +27,8 @@ interface UseRoomResult {
   mode: RoomMode | null;
   leave: () => void;
   retry: () => void;
+  /** Picks a side of a `"2v2"` room; a no-op call in `"1v1"`. */
+  setTeam: (team: number) => void;
 }
 
 /**
@@ -94,6 +97,10 @@ export function useRoom(
       );
     };
 
+    const onRoster = ({ players: roster }: RoomRosterPayload) => {
+      setPlayers(roster);
+    };
+
     const onError = (payload: RoomError) => {
       setError(payload);
       setStatus("error");
@@ -102,6 +109,7 @@ export function useRoom(
     socket.on("room:joined", onJoined);
     socket.on("room:player-joined", onPlayerJoined);
     socket.on("room:player-left", onPlayerLeft);
+    socket.on("room:roster", onRoster);
     socket.on("room:error", onError);
     // Re-join after a reconnect: the server dropped our socket binding, and the
     // room is only re-entered by asking.
@@ -113,6 +121,7 @@ export function useRoom(
       socket.off("room:joined", onJoined);
       socket.off("room:player-joined", onPlayerJoined);
       socket.off("room:player-left", onPlayerLeft);
+      socket.off("room:roster", onRoster);
       socket.off("room:error", onError);
       socket.off("connect", join);
     };
@@ -123,11 +132,19 @@ export function useRoom(
     getSocket(game).emit("room:leave", { roomCode, playerId });
   }, [game, roomCode, playerId]);
 
+  const setTeam = useCallback(
+    (team: number) => {
+      if (!game || !playerId) return;
+      getSocket(game).emit("room:set-team", { roomCode, playerId, team });
+    },
+    [game, roomCode, playerId],
+  );
+
   const retry = useCallback(() => {
     setError(null);
     setStatus("joining");
     setAttempt((n) => n + 1);
   }, []);
 
-  return { status, players, error, playerId, mode, leave, retry };
+  return { status, players, error, playerId, mode, leave, retry, setTeam };
 }

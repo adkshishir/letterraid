@@ -14,7 +14,10 @@ export type RoomErrorCode =
   | "ROOM_FULL"
   | "INVALID_NAME"
   | "INVALID_CODE"
-  | "PROFANITY_REJECTED";
+  | "PROFANITY_REJECTED"
+  | "INVALID_TEAM"
+  | "TEAM_FULL"
+  | "GAME_STARTED";
 
 /** "2v2" is fixed-size teams of two, not general N-player support. */
 export type RoomMode = "1v1" | "2v2";
@@ -58,6 +61,11 @@ export interface RoomJoinedPayload {
 export interface PlayerJoinedPayload {
   player: Player;
   reconnected: boolean;
+}
+
+/** Broadcast to the whole room whenever a team change lands. */
+export interface RoomRosterPayload {
+  players: Player[];
 }
 
 export interface PlayerLeftPayload {

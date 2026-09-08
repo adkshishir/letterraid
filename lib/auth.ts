@@ -91,7 +91,9 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function requestOtp(email: string): Promise<{ message: string }> {
+export async function requestOtp(
+  email: string,
+): Promise<{ message: string; isNewPlayer: boolean }> {
   return api("/auth/request-otp", {
     method: "POST",
     body: JSON.stringify({ email }),
@@ -101,7 +103,7 @@ export async function requestOtp(email: string): Promise<{ message: string }> {
 export async function verifyOtp(
   email: string,
   code: string,
-  displayName: string,
+  displayName?: string,
 ): Promise<AuthResponse> {
   const res = await api<AuthResponse>("/auth/verify-otp", {
     method: "POST",

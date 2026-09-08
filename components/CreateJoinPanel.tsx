@@ -9,6 +9,7 @@ import {
   storeDisplayName,
 } from "@/lib/player";
 import { useClientValue } from "@/lib/use-client-value";
+import { useAuth } from "@/components/AuthProvider";
 import type { GameId, RoomCreatedPayload, RoomError } from "@/lib/types";
 import { GAME_LABELS } from "@/lib/types";
 
@@ -17,7 +18,10 @@ const ROOM_CODE_LENGTH = 4;
 export default function CreateJoinPanel({ game }: { game: GameId }) {
   const router = useRouter();
 
-  // Prefill from localStorage without a setState-in-effect round trip.
+  // Logged in players never re-type their name — it was set once at
+  // registration. This page is also reachable signed out, so a manual
+  // field stays as the fallback for that case only.
+  const { player } = useAuth();
   const storedName = useClientValue(getStoredDisplayName, "");
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -35,11 +39,14 @@ export default function CreateJoinPanel({ game }: { game: GameId }) {
     setName(storedName);
   }
 
+  const loggedInName = player?.displayName ?? null;
+  const trimmedName = (loggedInName ?? name).trim();
+
   useEffect(() => {
     const socket = getSocket(game);
 
     const onCreated = ({ roomCode }: RoomCreatedPayload) => {
-      storeDisplayName(name.trim());
+      if (!loggedInName) storeDisplayName(trimmedName);
       router.push(`/room/${roomCode}`);
     };
     const onError = (payload: RoomError) => {
@@ -53,9 +60,8 @@ export default function CreateJoinPanel({ game }: { game: GameId }) {
       socket.off("room:created", onCreated);
       socket.off("room:error", onError);
     };
-  }, [game, name, router]);
+  }, [game, loggedInName, trimmedName, router]);
 
-  const trimmedName = name.trim();
   const normalizedCode = code.trim().toUpperCase();
   const canCreate = !!trimmedName && !busy;
   const canJoin = canCreate && normalizedCode.length === ROOM_CODE_LENGTH;
@@ -73,8 +79,8 @@ export default function CreateJoinPanel({ game }: { game: GameId }) {
     const complete = normalizedCode.length === ROOM_CODE_LENGTH;
     if (complete === codeWasComplete.current) return;
     codeWasComplete.current = complete;
-    if (complete) (trimmedName ? joinRef : nameRef).current?.focus();
-  }, [normalizedCode, trimmedName]);
+    if (complete) (loggedInName || trimmedName ? joinRef : nameRef).current?.focus();
+  }, [normalizedCode, loggedInName, trimmedName]);
 
   const handleCreate = () => {
     setBusy(true);
@@ -86,7 +92,7 @@ export default function CreateJoinPanel({ game }: { game: GameId }) {
   };
 
   const handleJoin = () => {
-    storeDisplayName(trimmedName);
+    if (!loggedInName) storeDisplayName(trimmedName);
     // The room page does the actual join — it has to resolve the game from the
     // code first anyway, and routing here keeps one join path for links too.
     router.push(`/room/${normalizedCode}`);
@@ -94,32 +100,39 @@ export default function CreateJoinPanel({ game }: { game: GameId }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <label htmlFor="name" className="text-sm font-semibold text-ink">
-          What should we call you?
-        </label>
-        <input
-          id="name"
-          ref={nameRef}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter") return;
-            e.preventDefault();
-            // Whichever button is the primary one right now — never the other,
-            // so Enter can't start a room when a code is sitting in the box.
-            if (joining) {
-              if (canJoin) handleJoin();
-            } else if (canCreate) {
-              handleCreate();
-            }
-          }}
-          maxLength={DISPLAY_NAME_MAX_LENGTH}
-          autoComplete="nickname"
-          placeholder="Your name"
-          className="w-full rounded-md border border-border-strong bg-surface px-4 py-3 text-ink outline-none placeholder:text-muted focus:border-accent"
-        />
-      </div>
+      {loggedInName ? (
+        <p className="text-sm text-muted">
+          Playing as <span className="font-semibold text-ink">{loggedInName}</span>
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <label htmlFor="name" className="text-sm font-semibold text-ink">
+            What should we call you?
+          </label>
+          <input
+            id="name"
+            ref={nameRef}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              // Whichever button is the primary one right now — never the
+              // other, so Enter can't start a room when a code is sitting in
+              // the box.
+              if (joining) {
+                if (canJoin) handleJoin();
+              } else if (canCreate) {
+                handleCreate();
+              }
+            }}
+            maxLength={DISPLAY_NAME_MAX_LENGTH}
+            autoComplete="nickname"
+            placeholder="Your name"
+            className="w-full rounded-md border border-border-strong bg-surface px-4 py-3 text-ink outline-none placeholder:text-muted focus:border-accent"
+          />
+        </div>
+      )}
 
       <button
         onClick={handleCreate}

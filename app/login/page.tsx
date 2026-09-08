@@ -6,12 +6,14 @@ import { Mail, ArrowRight, KeyRound, User, ArrowLeft, Loader2 } from "lucide-rea
 import { requestOtp, verifyOtp } from "@/lib/auth";
 import { useAuth } from "@/components/AuthProvider";
 
-type Step = "email" | "code";
+type Mode = "login" | "register";
+type Step = "details" | "code";
 
 export default function LoginPage() {
   const router = useRouter();
   const { player, refresh } = useAuth();
-  const [step, setStep] = useState<Step>("email");
+  const [mode, setMode] = useState<Mode>("login");
+  const [step, setStep] = useState<Step>("details");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -27,13 +29,26 @@ export default function LoginPage() {
     }
   }, [player, loading, router]);
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setError(null);
+  };
+
+  const handleDetailsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || loading) return;
+    if (loading) return;
+    if (!email.trim()) return;
+    if (mode === "register" && !name.trim()) return;
     setError(null);
     setLoading(true);
     try {
-      await requestOtp(email.trim());
+      const res = await requestOtp(email.trim());
+      if (mode === "login" && res.isNewPlayer) {
+        setError(
+          "No account found for this email. Switch to Create Account to sign up.",
+        );
+        return;
+      }
       setStep("code");
       setTimeout(() => codeRef.current?.focus(), 100);
     } catch (err) {
@@ -49,7 +64,11 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await verifyOtp(email.trim(), code.trim(), name.trim());
+      await verifyOtp(
+        email.trim(),
+        code.trim(),
+        mode === "register" ? name.trim() : undefined,
+      );
       setSuccess(true);
       await refresh();
       setTimeout(() => router.replace("/"), 800);
@@ -84,9 +103,43 @@ export default function LoginPage() {
             className="text-sm text-[#ccc3d8]/50 mt-1"
             style={{ fontFamily: "var(--font-hanken)" }}
           >
-            {step === "email" ? "Enter your email to start" : "Enter the code we sent"}
+            {step === "details"
+              ? mode === "login"
+                ? "Enter your email to start"
+                : "Create your account"
+              : "Enter the code we sent"}
           </p>
         </div>
+
+        {/* Mode toggle */}
+        {step === "details" && !success && (
+          <div className="flex mb-6 rounded-xl border border-[#4a4455]/60 bg-[#171f33]/80 p-1">
+            <button
+              type="button"
+              onClick={() => switchMode("login")}
+              className={`flex-1 rounded-lg py-2 text-sm font-bold transition-all tap-scale ${
+                mode === "login"
+                  ? "bg-[#7c3aed] text-white"
+                  : "text-[#ccc3d8]/50 hover:text-[#d2bbff]"
+              }`}
+              style={{ fontFamily: "var(--font-sora)" }}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode("register")}
+              className={`flex-1 rounded-lg py-2 text-sm font-bold transition-all tap-scale ${
+                mode === "register"
+                  ? "bg-[#7c3aed] text-white"
+                  : "text-[#ccc3d8]/50 hover:text-[#d2bbff]"
+              }`}
+              style={{ fontFamily: "var(--font-sora)" }}
+            >
+              Create Account
+            </button>
+          </div>
+        )}
 
         {/* Success state */}
         {success ? (
@@ -98,9 +151,39 @@ export default function LoginPage() {
               Welcome!
             </p>
           </div>
-        ) : step === "email" ? (
-          /* Step 1: Email */
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
+        ) : step === "details" ? (
+          /* Step 1: Email (+ Name for register) */
+          <form onSubmit={handleDetailsSubmit} className="space-y-4">
+            {mode === "register" && (
+              <div>
+                <label
+                  htmlFor="name"
+                  className="block text-[11px] text-[#ccc3d8]/40 uppercase tracking-widest mb-2"
+                  style={{ fontFamily: "var(--font-jetbrains)" }}
+                >
+                  Your Name
+                </label>
+                <div className="relative">
+                  <User
+                    size={16}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#ccc3d8]/30"
+                  />
+                  <input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    maxLength={20}
+                    placeholder="Choose a name"
+                    autoComplete="nickname"
+                    autoFocus
+                    className="w-full rounded-xl border border-[#4a4455]/60 bg-[#171f33]/80 pl-10 pr-4 py-3.5 text-[#dae2fd] outline-none placeholder:text-[#ccc3d8]/30 focus:border-[#7c3aed]/60 focus:shadow-[0_0_0_3px_rgba(124,58,237,0.1)] transition-all"
+                    style={{ fontFamily: "var(--font-hanken)" }}
+                  />
+                </div>
+              </div>
+            )}
+
             <div>
               <label
                 htmlFor="email"
@@ -120,11 +203,11 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") handleEmailSubmit(e);
+                    if (e.key === "Enter") handleDetailsSubmit(e);
                   }}
                   placeholder="you@example.com"
                   autoComplete="email"
-                  autoFocus
+                  autoFocus={mode === "login"}
                   className="w-full rounded-xl border border-[#4a4455]/60 bg-[#171f33]/80 pl-10 pr-4 py-3.5 text-[#dae2fd] outline-none placeholder:text-[#ccc3d8]/30 focus:border-[#7c3aed]/60 focus:shadow-[0_0_0_3px_rgba(124,58,237,0.1)] transition-all"
                   style={{ fontFamily: "var(--font-hanken)" }}
                 />
@@ -133,7 +216,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={!email.trim() || loading}
+              disabled={!email.trim() || (mode === "register" && !name.trim()) || loading}
               className="w-full rounded-xl bg-[#7c3aed] py-3.5 flex items-center justify-center gap-2 text-sm font-bold text-white shadow-[0_4px_20px_rgba(124,58,237,0.3)] hover:shadow-[0_6px_28px_rgba(124,58,237,0.4)] transition-all disabled:opacity-30 disabled:shadow-none tap-scale"
               style={{ fontFamily: "var(--font-sora)" }}
             >
@@ -148,45 +231,17 @@ export default function LoginPage() {
             </button>
           </form>
         ) : (
-          /* Step 2: Code + Name */
+          /* Step 2: Code */
           <form onSubmit={handleCodeSubmit} className="space-y-4">
             <button
               type="button"
-              onClick={() => { setStep("email"); setCode(""); setError(null); }}
+              onClick={() => { setStep("details"); setCode(""); setError(null); }}
               className="flex items-center gap-2 text-sm text-[#ccc3d8]/60 hover:text-[#d2bbff] transition-colors tap-scale mb-2"
               style={{ fontFamily: "var(--font-hanken)" }}
             >
               <ArrowLeft size={14} />
               {email}
             </button>
-
-            {/* Name */}
-            <div>
-              <label
-                htmlFor="otp-name"
-                className="block text-[11px] text-[#ccc3d8]/40 uppercase tracking-widest mb-2"
-                style={{ fontFamily: "var(--font-jetbrains)" }}
-              >
-                Your Name
-              </label>
-              <div className="relative">
-                <User
-                  size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#ccc3d8]/30"
-                />
-                <input
-                  id="otp-name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  maxLength={20}
-                  placeholder="Choose a name"
-                  autoComplete="nickname"
-                  className="w-full rounded-xl border border-[#4a4455]/60 bg-[#171f33]/80 pl-10 pr-4 py-3.5 text-[#dae2fd] outline-none placeholder:text-[#ccc3d8]/30 focus:border-[#7c3aed]/60 focus:shadow-[0_0_0_3px_rgba(124,58,237,0.1)] transition-all"
-                  style={{ fontFamily: "var(--font-hanken)" }}
-                />
-              </div>
-            </div>
 
             {/* OTP Code */}
             <div>
@@ -211,6 +266,7 @@ export default function LoginPage() {
                 placeholder="000000"
                 maxLength={6}
                 autoComplete="one-time-code"
+                autoFocus
                 className="w-full rounded-xl border border-[#4a4455]/60 bg-[#171f33]/80 px-4 py-3.5 text-center text-2xl tracking-[0.5em] text-[#dae2fd] outline-none placeholder:tracking-[0.5em] placeholder:text-[#ccc3d8]/20 focus:border-[#4cd7f6]/60 focus:shadow-[0_0_0_3px_rgba(76,215,246,0.1)] transition-all"
                 style={{ fontFamily: "var(--font-jetbrains)" }}
               />
@@ -218,7 +274,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={!code.trim() || !name.trim() || loading}
+              disabled={!code.trim() || loading}
               className="w-full rounded-xl bg-[#7c3aed] py-3.5 flex items-center justify-center gap-2 text-sm font-bold text-white shadow-[0_4px_20px_rgba(124,58,237,0.3)] hover:shadow-[0_6px_28px_rgba(124,58,237,0.4)] transition-all disabled:opacity-30 disabled:shadow-none tap-scale"
               style={{ fontFamily: "var(--font-sora)" }}
             >

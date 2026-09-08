@@ -13,9 +13,16 @@ import type { Player } from "@/lib/types";
 export default function TeamRoster({
   players,
   meId,
+  onPickTeam,
 }: {
   players: Player[];
   meId: string | null;
+  /**
+   * Lets the local player claim a side. Present only while the lobby is
+   * still filling — once the room is full the server freezes teams for the
+   * round and stops honoring `room:set-team` anyway.
+   */
+  onPickTeam?: (team: number) => void;
 }) {
   const me = players.find((p) => p.id === meId) ?? null;
   const myTeam = me?.team ?? 0;
@@ -30,6 +37,11 @@ export default function TeamRoster({
         players={teamA}
         meId={meId}
         highlight={myTeam === 0}
+        onJoin={
+          onPickTeam && myTeam !== 0 && teamA.length < 2
+            ? () => onPickTeam(0)
+            : undefined
+        }
       />
       <div aria-hidden className="mt-6 h-16 w-px bg-border" />
       <Team
@@ -37,6 +49,11 @@ export default function TeamRoster({
         players={teamB}
         meId={meId}
         highlight={myTeam === 1}
+        onJoin={
+          onPickTeam && myTeam !== 1 && teamB.length < 2
+            ? () => onPickTeam(1)
+            : undefined
+        }
       />
     </div>
   );
@@ -47,11 +64,14 @@ function Team({
   players,
   meId,
   highlight,
+  onJoin,
 }: {
   label: string;
   players: Player[];
   meId: string | null;
   highlight: boolean;
+  /** Present only when the local player can move to this team right now. */
+  onJoin?: () => void;
 }) {
   // Always render two seats — a real one for whoever's here, a pending one
   // for whoever isn't, in the same slot on every screen.
@@ -67,6 +87,14 @@ function Team({
         {label}
         {highlight && " (you)"}
       </span>
+      {onJoin && (
+        <button
+          onClick={onJoin}
+          className="pressable -mt-1 rounded-full border border-accent/40 px-2.5 py-0.5 text-[10px] font-semibold text-accent"
+        >
+          Join
+        </button>
+      )}
       <div className="flex gap-3">
         {seats.map((player, i) => {
           const isMe = player?.id === meId;

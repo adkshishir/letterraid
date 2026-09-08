@@ -19,18 +19,20 @@ game gateway. The shapes below are what the server actually emits.
 
 ```ts
 // Client -> Server
-"room:create"   { playerId: string, displayName: string }
+"room:create"   { playerId: string, displayName: string, mode?: "1v1" | "2v2" }
 "room:join"     { playerId: string, roomCode: string, displayName: string }
+"room:set-team" { playerId: string, roomCode: string, team: 0 | 1 }   // "2v2" only, lobby only
 "room:leave"    { playerId: string, roomCode: string }
 
 // Server -> Client
-"room:created"       { roomCode: string, players: Player[] }
-"room:joined"        { roomCode: string, players: Player[], reconnected: boolean } // to the joiner
+"room:created"       { roomCode: string, players: Player[], mode: "1v1" | "2v2" }
+"room:joined"        { roomCode: string, players: Player[], reconnected: boolean, mode: "1v1" | "2v2" } // to the joiner
 "room:player-joined" { player: Player, reconnected: boolean }   // to the other player only
+"room:roster"        { players: Player[] }   // broadcast to the whole room after a team change
 "room:player-left"   { playerId: string, temporary: boolean }
 "room:error"         { code: RoomErrorCode, message: string }
 
-type Player = { id: string, displayName: string, connected: boolean }
+type Player = { id: string, displayName: string, connected: boolean, team: number | null, isBot: boolean }
 
 type RoomErrorCode =
   | "ROOM_NOT_FOUND"
@@ -38,6 +40,9 @@ type RoomErrorCode =
   | "INVALID_NAME"
   | "INVALID_CODE"        // malformed code, rejected before lookup
   | "PROFANITY_REJECTED"
+  | "INVALID_TEAM"        // not "2v2", or not exactly 0/1
+  | "TEAM_FULL"           // the requested team already has 2 players
+  | "GAME_STARTED"        // room already reached capacity; teams are frozen
 ```
 
 `playerId` is the client's persisted localStorage UUID and is required on every room event — it's
@@ -47,12 +52,32 @@ what makes reconnection work (see Cross-Cutting below).
 held, they may return) from a deliberate exit (`false` — the seat is freed). The UI should say
 "reconnecting…" for the first and "Ben left" for the second.
 
+**`mode` is chosen at room creation, not auto-detected.** `room:create`'s `mode` field is optional
+and defaults to `"1v1"`; any value other than exactly `"1v1"`/`"2v2"` (including a missing field)
+falls back to the default too. `mode` on `room:created`/`room:joined` is how every client — the
+creator included, since the room page re-joins its own room on mount — learns which one a room is.
+
+**`team` on `Player`** is `0` or `1` in a `"2v2"` room, always `null` in `"1v1"`. On join it
+defaults to whichever team has room, filling team 0 first — so the ordinary case (people joining
+one after another) pairs the first two arrivals together. A player can move themselves with
+`room:set-team` at any point while the lobby is still filling; a leave never reassigns anyone
+else's team. Once the room reaches capacity and Heist's round starts, `team` is frozen for that
+round and `room:set-team` starts rejecting with `GAME_STARTED`.
+
+**`isBot` on `Player`** is `true` only for a fallback opponent the matchmaker seated after a ranked
+queue entry waited too long for a human match (`BOT_FALLBACK_MS` in
+`backend/src/match/matchmaker.service.ts`). Bots are real `Player` rows in Postgres — same match
+history, trophies and XP path as a human — so this is purely a client-facing "this seat is a bot"
+flag, never a signal that the match doesn't count.
+
 - Room codes: **4-character** alphanumeric, uppercase, from the charset
   `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (excludes ambiguous `0/O`, `1/I`) — this is imposter's exact
   proven generator, ported directly. 4 chars gives ~1M combinations, plenty for concurrent
   ephemeral rooms, and is meaningfully easier to read aloud/type on a phone than 6.
-- Every game caps at **2 players per room** — a `room:join` on a full room returns `room:error`
-  with `ROOM_FULL`.
+- Room capacity is **per-mode**, not a flat 2 — `maxPlayersForMode` in
+  `backend/src/rooms/room.types.ts` is the single place that decides it (2 for `"1v1"`, 4 for
+  Heist's `"2v2"` Squads mode). A `room:join` on a full room returns `room:error` with `ROOM_FULL`
+  either way.
 - **Room codes are unique across all five games**, held in one shared registry. That's what lets a
   short `/room/ABCD` share link resolve without naming the game.
 - **Room lifetime is per-game**, set by how much a paused position is worth keeping. A periodic
@@ -74,7 +99,9 @@ Discovery only, so `/room/[code]` can pick a namespace before opening a socket:
 200 {
   code: string,
   game: "chain" | "sync" | "signal" | "hunch" | "heist",
+  mode: "1v1" | "2v2",
   playerCount: number,
+  maxPlayers: number,
   joinable: boolean,
 }
 404 { code: "ROOM_NOT_FOUND" }
@@ -106,12 +133,14 @@ build, and `heist:request-state` doesn't even need a `playerId`.
 "heist:letter"    { letter: string }          // a letter just dropped onto the table
 "heist:claimed"   { playerId, word, points, type: "pool" | "steal",
                     stolenWord: string | null, stolenFrom: string | null }
-"heist:game-over" { scores: HeistScore[], winnerId: string | null, tied: boolean }
+"heist:game-over" { scores: HeistScore[], winnerId: string | null, tied: boolean,
+                    teamScores: HeistTeamScore[] | null, winningTeam: number | null }
 "heist:restarted" {}
 "heist:error"     { code: HeistErrorCode, message: string }   // to the claimer only
 
-type HeistWordView = { id: number, word: string, ownerId: string, points: number }
-type HeistScore    = { playerId: string, score: number, words: number }
+type HeistWordView  = { id: number, word: string, ownerId: string, points: number }
+type HeistScore     = { playerId: string, score: number, words: number, team: number | null }
+type HeistTeamScore = { team: number, score: number, playerIds: string[] }
 
 type HeistStateView = {
   status: "playing" | "complete"
@@ -119,7 +148,15 @@ type HeistStateView = {
   words: HeistWordView[]
   scores: HeistScore[]
   msRemaining: number | null   // null once the clock has stopped
-  result: { scores: HeistScore[], winnerId: string | null, tied: boolean } | null
+  result: HeistResult | null
+}
+
+type HeistResult = {
+  scores: HeistScore[]
+  winnerId: string | null      // null on a draw, and always null in a 2v2 game — see below
+  tied: boolean
+  teamScores: HeistTeamScore[] | null   // null in a 1v1 game
+  winningTeam: number | null            // null in 1v1, or in a 2v2 tie
 }
 
 type HeistErrorCode =
@@ -134,6 +171,13 @@ should trust — a local countdown is for smoothing between pushes, not for deci
 
 **`heist:claimed` carries `stolenFrom`, which may be the claimer themselves.** A player upgrading
 their own word is a legal steal and reports as one.
+
+**In a `"2v2"` game, `team` decides the round instead of `winnerId`.** `HeistScore.team` is `0` or
+`1` (always `null` in `"1v1"`); `teamScores` sums each team's members and is `null` when the game
+has no teams. `winningTeam` names the higher-scoring team, or `null` on a genuine team tie —
+`winnerId` is always `null` in a 2v2 game, even when one teammate individually outscored everyone
+else, because the team total is what decides. A teammate's word is never offered as a steal
+target — it's not a candidate at all, so it never surfaces as a blocked move either.
 
 **A word's id changes when it is stolen.** The old entry is removed and a new one pushed, so
 clients must key word lists on `id` and not on the string.

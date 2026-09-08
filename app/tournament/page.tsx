@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import GameLayout from "@/components/GameLayout";
 import TournamentView from "./TournamentView";
 
@@ -8,7 +9,9 @@ export const metadata = {
 export default function TournamentPage() {
   return (
     <GameLayout>
-      <TournamentView />
+      <Suspense>
+        <TournamentView />
+      </Suspense>
     </GameLayout>
   );
 }

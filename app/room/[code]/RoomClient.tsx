@@ -52,11 +52,8 @@ export default function RoomClient({ code }: { code: string }) {
   }, [code]);
 
   const game = lookup.state === "found" ? lookup.game : null;
-  const { status, players, error, playerId, mode, leave, retry } = useRoom(
-    game,
-    code,
-    displayName,
-  );
+  const { status, players, error, playerId, mode, leave, retry, setTeam } =
+    useRoom(game, code, displayName);
   // Falls back to 2 (1v1's size) for the brief window before `room:joined`
   // has told us the room's actual mode.
   const maxPlayers = mode ? maxPlayersForMode(mode) : 2;
@@ -137,6 +134,7 @@ export default function RoomClient({ code }: { code: string }) {
             players={players}
             meId={playerId}
             mode={mode}
+            onPickTeam={setTeam}
           />
         ) : (
           <Game

@@ -20,6 +20,7 @@ export default function Lobby({
   players,
   meId,
   mode,
+  onPickTeam,
 }: {
   game: GameId;
   code: string;
@@ -27,6 +28,8 @@ export default function Lobby({
   meId: string | null;
   /** Null for the brief window before the server's `room:joined` confirms it. */
   mode: RoomMode | null;
+  /** Lets the local player choose their `"2v2"` team; ignored otherwise. */
+  onPickTeam?: (team: number) => void;
 }) {
   const [showShare, setShowShare] = useState(false);
   const maxPlayers = mode ? maxPlayersForMode(mode) : 2;
@@ -35,7 +38,11 @@ export default function Lobby({
   return (
     <div className="flex flex-col items-center gap-8 py-8">
       {mode === "2v2" ? (
-        <TeamRoster players={players} meId={meId} />
+        <TeamRoster
+          players={players}
+          meId={meId}
+          onPickTeam={waiting ? onPickTeam : undefined}
+        />
       ) : (
         <PlayerPair players={players} meId={meId} />
       )}
