@@ -253,6 +253,17 @@ body {
   50% { box-shadow: 0 0 30px rgba(124, 58, 237, 0.5), 0 0 60px rgba(124, 58, 237, 0.2); }
 }
 
+@keyframes confetti-fall {
+  0% { transform: translateY(-12px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(180px) rotate(var(--confetti-spin, 320deg)); opacity: 0; }
+}
+
+@keyframes trophy-burst {
+  0% { transform: scale(0.6); opacity: 0; }
+  55% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 .animate-fade-in { animation: fade-in 300ms ease-out both; }
 .animate-slide-up { animation: slide-up 350ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 .animate-slide-down { animation: slide-down 350ms cubic-bezier(0.16, 1, 0.3, 1) both; }
@@ -266,6 +277,8 @@ body {
   background: rgba(255,255,255,0.05);
   animation: shimmer 2s infinite;
 }
+.animate-confetti-fall { animation: confetti-fall linear both; }
+.animate-trophy-burst { animation: trophy-burst 500ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 .energy-ring {
   position: absolute;
@@ -333,13 +346,15 @@ body {
   .animate-pop-in,
   .animate-fade-in,
   .animate-scale-in,
-  .animate-slide-down {
+  .animate-slide-down,
+  .animate-trophy-burst {
     animation: fade-in 150ms ease-out both;
   }
   .animate-pulse-soft,
   .pulse-glow,
   .animate-glow-breathe,
-  .energy-ring {
+  .energy-ring,
+  .animate-confetti-fall {
     animation: none;
   }
   .pressable:active,
