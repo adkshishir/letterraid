@@ -120,6 +120,15 @@ export async function fetchProfile(): Promise<Player> {
   return player;
 }
 
+export async function updateProfile(displayName: string): Promise<Player> {
+  const player = await api<Player>("/auth/profile", {
+    method: "PUT",
+    body: JSON.stringify({ displayName }),
+  });
+  setStoredPlayer(player);
+  return player;
+}
+
 export async function logout(): Promise<void> {
   try {
     await api("/auth/logout", { method: "POST" });

@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Swords, Target, Flame, Settings,
-  ChevronDown, LogOut, Loader2,
+  ChevronDown, LogOut, Loader2, Check,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { fetchMatchHistory, logout, type MatchHistoryEntry } from "@/lib/auth";
+import { fetchMatchHistory, logout, updateProfile, type MatchHistoryEntry } from "@/lib/auth";
+
+const DISPLAY_NAME_MAX_LENGTH = 20;
 
 const XP_PER_LEVEL = 500;
 
@@ -29,9 +31,24 @@ const RESULT_STYLES = {
 
 export default function ProfileView() {
   const router = useRouter();
-  const { player, signOut } = useAuth();
+  const { player, signOut, refresh } = useAuth();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [history, setHistory] = useState<MatchHistoryEntry[] | null>(null);
+  const [nameInput, setNameInput] = useState(player?.displayName ?? "");
+  // Tracks the account name the field was last synced to, so it can pick up
+  // an external change (auth hydrating after this component's first render,
+  // or a save elsewhere) without clobbering anything the user is mid-typing.
+  // Set during render rather than an effect — see React's "adjusting state
+  // when a prop changes" pattern.
+  const [syncedName, setSyncedName] = useState(player?.displayName ?? "");
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [nameSaved, setNameSaved] = useState(false);
+
+  if (player && player.displayName !== syncedName) {
+    setSyncedName(player.displayName);
+    setNameInput(player.displayName);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +62,26 @@ export default function ProfileView() {
     await logout();
     signOut();
     router.replace("/login");
+  };
+
+  const trimmedName = nameInput.trim();
+  const nameChanged = trimmedName.length > 0 && trimmedName !== player?.displayName;
+
+  const handleSaveName = async () => {
+    if (!nameChanged || nameSaving) return;
+    setNameSaving(true);
+    setNameError(null);
+    setNameSaved(false);
+    try {
+      await updateProfile(trimmedName);
+      await refresh();
+      setNameSaved(true);
+      setTimeout(() => setNameSaved(false), 2000);
+    } catch (err) {
+      setNameError(err instanceof Error ? err.message : "Failed to save name");
+    } finally {
+      setNameSaving(false);
+    }
   };
 
   if (!player) return null;
@@ -171,6 +208,43 @@ export default function ProfileView() {
         </button>
         <div className={`settings-content ${settingsOpen ? "expanded" : ""}`}>
           <div className="px-4 pb-4 space-y-3">
+            <div>
+              <label
+                htmlFor="display-name"
+                className="block text-[10px] text-[#ccc3d8]/40 uppercase tracking-widest mb-1.5"
+                style={{ fontFamily: "var(--font-jetbrains)" }}
+              >
+                Display Name
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="display-name"
+                  value={nameInput}
+                  onChange={(e) => { setNameInput(e.target.value); setNameError(null); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleSaveName(); }}
+                  maxLength={DISPLAY_NAME_MAX_LENGTH}
+                  className="flex-1 rounded-lg border border-white/[0.08] bg-[#171f33]/80 px-3 py-2 text-sm text-[#dae2fd] outline-none focus:border-[#7c3aed]/60 transition-all"
+                  style={{ fontFamily: "var(--font-hanken)" }}
+                />
+                <button
+                  onClick={handleSaveName}
+                  disabled={!nameChanged || nameSaving}
+                  className="shrink-0 w-16 rounded-lg bg-[#7c3aed] text-sm font-bold text-white disabled:opacity-30 flex items-center justify-center tap-scale"
+                >
+                  {nameSaving ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : nameSaved ? (
+                    <Check size={16} />
+                  ) : (
+                    "Save"
+                  )}
+                </button>
+              </div>
+              {nameError && (
+                <p className="mt-1.5 text-xs text-[#ff8a85]" role="alert">{nameError}</p>
+              )}
+            </div>
+
             <div className="pt-2 border-t border-white/[0.04]">
               <button
                 onClick={handleLogout}
