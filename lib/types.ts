@@ -31,6 +31,8 @@ export interface Player {
   connected: boolean;
   /** Which side of a 2v2 room (0 or 1) this player is on; null in a 1v1 room. */
   team: number | null;
+  /** A matchmaker-seeded bot opponent rather than a real connected player. */
+  isBot: boolean;
 }
 
 export interface RoomError {
