@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import HeistGame from "@/components/heist/HeistGame";
@@ -25,6 +25,8 @@ interface GameProps {
   players: Player[];
   /** Leaves the room and returns to the homepage. */
   onGoHome: () => void;
+  /** Reports whether the round is actively being played — see `HeistGame`. */
+  onPhaseChange?: (playing: boolean) => void;
 }
 
 const GAMES: Record<GameId, React.ComponentType<GameProps>> = {
@@ -57,6 +59,13 @@ export default function RoomClient({ code }: { code: string }) {
   // Falls back to 2 (1v1's size) for the brief window before `room:joined`
   // has told us the room's actual mode.
   const maxPlayers = mode ? maxPlayersForMode(mode) : 2;
+
+  // While a round is actively being played, the header (back button, invite,
+  // room code) gets out of the way entirely — nothing should tempt someone
+  // to leave, or clutter the screen, mid-race. It reappears for the lobby
+  // and the result screen.
+  const [playing, setPlaying] = useState(false);
+  const handlePhaseChange = useCallback((next: boolean) => setPlaying(next), []);
 
   const handleLeave = () => {
     leave();
@@ -98,12 +107,14 @@ export default function RoomClient({ code }: { code: string }) {
 
   return (
     <div data-game={game} className="flex min-h-full flex-col">
-      <RoomHeader
-        code={code}
-        phaseLabel={GAME_LABELS[lookup.game]}
-        connected={status !== "error"}
-        onLeave={handleLeave}
-      />
+      {!playing && (
+        <RoomHeader
+          code={code}
+          phaseLabel={GAME_LABELS[lookup.game]}
+          connected={status !== "error"}
+          onLeave={handleLeave}
+        />
+      )}
 
       <main className="mx-auto w-full max-w-lg flex-1 px-5">
         {status === "error" && error ? (
@@ -142,6 +153,7 @@ export default function RoomClient({ code }: { code: string }) {
             playerId={playerId}
             players={players}
             onGoHome={handleGoHome}
+            onPhaseChange={handlePhaseChange}
           />
         )}
       </main>

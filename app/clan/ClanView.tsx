@@ -14,6 +14,7 @@ import {
   X,
   Trophy,
   Loader2,
+  Bot,
 } from "lucide-react";
 import { getPlayerId, getSocket } from "@/lib/socket";
 import { useAuth } from "@/components/AuthProvider";
@@ -28,13 +29,14 @@ import {
   listClans,
 } from "@/lib/clans";
 import { listClanTournaments, TournamentSummary } from "@/lib/tournaments";
+import { BOT_TIERS, BotTier, startPracticeMatch } from "@/lib/practice";
 import type { RoomCreatedPayload, RoomError, RoomMode } from "@/lib/types";
 import { DEFAULT_ROOM_MODE } from "@/lib/types";
 
 const ROOM_CODE_LENGTH = 4;
 
 export default function ClanView() {
-  const [tab, setTab] = useState<"clan" | "friends">("clan");
+  const [tab, setTab] = useState<"clan" | "friends" | "practice">("clan");
 
   return (
     <div className="px-4 max-w-lg mx-auto animate-fade-in">
@@ -43,12 +45,12 @@ export default function ClanView() {
           Squads
         </h2>
         <p className="text-[11px] text-[#ccc3d8]/40 mt-0.5" style={{ fontFamily: "var(--font-jetbrains)" }}>
-          Your clan, or a private match with a friend
+          Your clan, a friend match, or a bot to warm up against
         </p>
       </div>
 
       <div className="flex mb-6 rounded-xl border border-white/[0.06] bg-[#171f33]/60 p-1">
-        {(["clan", "friends"] as const).map((t) => (
+        {(["clan", "friends", "practice"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -57,12 +59,77 @@ export default function ClanView() {
             }`}
             style={{ fontFamily: "var(--font-sora)" }}
           >
-            {t === "clan" ? "Clan" : "Friends"}
+            {t === "clan" ? "Clan" : t === "friends" ? "Friends" : "Practice"}
           </button>
         ))}
       </div>
 
-      {tab === "clan" ? <ClanHub /> : <FriendsPanel />}
+      {tab === "clan" ? <ClanHub /> : tab === "friends" ? <FriendsPanel /> : <PracticeHub />}
+    </div>
+  );
+}
+
+// ── Practice (bots) ──────────────────────────────────────────────────────
+
+function PracticeHub() {
+  const router = useRouter();
+  const [busyTier, setBusyTier] = useState<BotTier | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handlePlay = async (tier: BotTier) => {
+    if (busyTier) return;
+    setBusyTier(tier);
+    setError(null);
+    try {
+      const { roomCode } = await startPracticeMatch(tier);
+      router.push(`/room/${roomCode}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start practice match");
+      setBusyTier(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-xs text-[#ccc3d8]/40" style={{ fontFamily: "var(--font-hanken)" }}>
+        No trophies at stake — pick a bot and jump straight in.
+      </p>
+
+      {error && (
+        <div className="rounded-xl bg-[#ff8a85]/10 border border-[#ff8a85]/20 p-3">
+          <p className="text-sm text-[#ff8a85] text-center" style={{ fontFamily: "var(--font-hanken)" }}>
+            {error}
+          </p>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2.5">
+        {BOT_TIERS.map(({ tier, label, blurb }) => (
+          <button
+            key={tier}
+            onClick={() => handlePlay(tier)}
+            disabled={busyTier !== null}
+            className="glass rounded-2xl p-4 flex items-center gap-4 tap-scale hover:bg-white/[0.04] transition-colors disabled:opacity-50 text-left"
+          >
+            <div className="w-11 h-11 rounded-xl bg-[#7c3aed]/15 border border-[#7c3aed]/25 flex items-center justify-center shrink-0">
+              <Bot size={20} className="text-[#d2bbff]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold text-[#dae2fd]" style={{ fontFamily: "var(--font-sora)" }}>
+                {label}
+              </div>
+              <div className="text-[11px] text-[#ccc3d8]/40 mt-0.5" style={{ fontFamily: "var(--font-hanken)" }}>
+                {blurb}
+              </div>
+            </div>
+            {busyTier === tier ? (
+              <Loader2 size={18} className="text-[#7c3aed] animate-spin shrink-0" />
+            ) : (
+              <Swords size={16} className="text-[#ccc3d8]/30 shrink-0" />
+            )}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

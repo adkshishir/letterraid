@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Trophy, Zap } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Trophy, Zap } from "lucide-react";
 import RoundTimer from "@/components/RoundTimer";
 import { useHeistGame } from "@/hooks/useHeistGame";
 import type {
@@ -25,16 +25,33 @@ export default function HeistGame({
   playerId,
   players,
   onGoHome,
+  onPhaseChange,
 }: {
   roomCode: string;
   playerId: string | null;
   players: Player[];
   /** Leaves the room and returns to the homepage. */
   onGoHome: () => void;
+  /**
+   * Reports whether the round is actively being played, so the room chrome
+   * (header, back button) can get out of the way during it — see
+   * `RoomClient`. Not called for the lobby (this component isn't mounted
+   * yet) or for a game that hasn't loaded its first state.
+   */
+  onPhaseChange?: (playing: boolean) => void;
 }) {
   const game = useHeistGame(roomCode, playerId);
   const { state } = game;
   const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    onPhaseChange?.(state?.status === "playing");
+    // Leaving this screen entirely (unmount) always means chrome should come
+    // back — a dropped connection or navigating away shouldn't strand the
+    // header hidden.
+    return () => onPhaseChange?.(false);
+  }, [state?.status, onPhaseChange]);
 
   const nameFor = (id: string) =>
     id === playerId
@@ -137,24 +154,42 @@ export default function HeistGame({
           // Cleared optimistically: the next word is already being typed, and
           // waiting for the server to confirm would eat the first keystrokes.
           setValue("");
+          // Tapping the submit button (as opposed to pressing Enter/Done on a
+          // keyboard) blurs the input — get it right back so the keyboard
+          // stays up and the next word can start immediately.
+          requestAnimationFrame(() => inputRef.current?.focus());
         }}
       >
-        <input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          autoFocus
-          autoComplete="off"
-          autoCapitalize="off"
-          autoCorrect="off"
-          spellCheck={false}
-          aria-label="Claim a word"
-          placeholder="Type a word…"
-          className={`w-full rounded-md border bg-surface px-4 py-3 text-center font-mono text-lg uppercase tracking-widest text-ink outline-none placeholder:normal-case placeholder:tracking-normal placeholder:text-muted/50 focus:border-accent ${
-            game.error ? "animate-shake border-danger" : "border-border-strong"
-          }`}
-          // Re-keying on the error restarts the shake for a repeated message.
-          key={game.error?.key ?? "input"}
-        />
+        <div className="relative">
+          <input
+            ref={inputRef}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            autoFocus
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="done"
+            aria-label="Claim a word"
+            placeholder="Type a word…"
+            className={`w-full rounded-md border bg-surface py-3 pl-4 pr-14 text-center font-mono text-lg uppercase tracking-widest text-ink outline-none placeholder:normal-case placeholder:tracking-normal placeholder:text-muted/50 focus:border-accent ${
+              game.error ? "animate-shake border-danger" : "border-border-strong"
+            }`}
+            // Re-keying on the error restarts the shake for a repeated message.
+            key={game.error?.key ?? "input"}
+          />
+          {/* Explicit tap target alongside the keyboard's own Enter/Done key —
+              either one submits, so nobody has to guess which does. */}
+          <button
+            type="submit"
+            disabled={!value.trim()}
+            aria-label="Submit word"
+            className="pressable absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-accent text-on-fill transition-opacity disabled:bg-transparent disabled:text-muted disabled:opacity-40"
+          >
+            <Check size={18} />
+          </button>
+        </div>
         <p
           className="min-h-5 text-center text-xs"
           role={game.error ? "alert" : undefined}
