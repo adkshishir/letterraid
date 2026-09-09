@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Users,
   UserPlus,
-  ArrowLeft,
   Zap,
   Swords,
   Crown,
@@ -481,7 +479,7 @@ function FriendsPanel() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"idle" | "create" | "join">("idle");
+  const [mode, setMode] = useState<"create" | "join">("create");
   const [roomMode, setRoomMode] = useState<RoomMode>(DEFAULT_ROOM_MODE);
 
   const joinRef = useRef<HTMLButtonElement>(null);
@@ -529,38 +527,14 @@ function FriendsPanel() {
     router.push(`/room/${normalizedCode}`);
   };
 
-  const reset = () => { setMode("idle"); setError(null); setCode(""); setBusy(false); setRoomMode(DEFAULT_ROOM_MODE); };
-
-  /* ─── IDLE: play with a friend ─── */
-  if (mode === "idle") {
-    return (
-      <div className="animate-fade-in">
-        <button
-          onClick={() => setMode("create")}
-          className="w-full glass rounded-2xl p-5 flex items-center gap-4 tap-scale hover:bg-white/[0.04] transition-colors group"
-        >
-          <div className="w-12 h-12 rounded-xl bg-[#7c3aed]/15 border border-[#7c3aed]/25 flex items-center justify-center group-hover:border-[#7c3aed]/40 transition-colors shrink-0">
-            <Users size={24} className="text-[#d2bbff]" />
-          </div>
-          <div className="text-left">
-            <div className="text-sm font-bold text-[#dae2fd]" style={{ fontFamily: "var(--font-sora)" }}>Friends</div>
-            <div className="text-[10px] text-[#ccc3d8]/40 mt-0.5" style={{ fontFamily: "var(--font-hanken)" }}>
-              Create a private room and share the code
-            </div>
-          </div>
-        </button>
-      </div>
-    );
-  }
+  const switchMode = (next: "create" | "join") => {
+    setMode(next);
+    setError(null);
+  };
 
   /* ─── CREATE / JOIN ─── */
   return (
-    <div className="animate-slide-up">
-      <button onClick={reset} className="flex items-center gap-2 text-sm text-[#ccc3d8]/60 hover:text-[#d2bbff] transition-colors mb-6 tap-scale" style={{ fontFamily: "var(--font-hanken)" }}>
-        <ArrowLeft size={16} />
-        Back
-      </button>
-
+    <div className="animate-fade-in">
       <div className="mb-6">
         <h2 className="text-xl font-bold text-[#dae2fd]" style={{ fontFamily: "var(--font-sora)" }}>
           {mode === "create" ? "Create Room" : "Join Room"}
@@ -645,7 +619,7 @@ function FriendsPanel() {
         <span className="text-[11px] text-[#ccc3d8]/30" style={{ fontFamily: "var(--font-jetbrains)" }}>OR</span>
         <span className="h-px flex-1 bg-white/[0.06]" />
       </div>
-      <button onClick={() => { setMode(mode === "create" ? "join" : "create"); setError(null); }} className="w-full rounded-xl border border-white/[0.06] py-3 text-sm font-medium text-[#ccc3d8]/60 hover:text-[#d2bbff] hover:border-[#7c3aed]/20 transition-all flex items-center justify-center gap-2 tap-scale" style={{ fontFamily: "var(--font-hanken)" }}>
+      <button onClick={() => switchMode(mode === "create" ? "join" : "create")} className="w-full rounded-xl border border-white/[0.06] py-3 text-sm font-medium text-[#ccc3d8]/60 hover:text-[#d2bbff] hover:border-[#7c3aed]/20 transition-all flex items-center justify-center gap-2 tap-scale" style={{ fontFamily: "var(--font-hanken)" }}>
         {mode === "create" ? <><UserPlus size={16} /> Join with Code</> : <><Swords size={16} /> Create Instead</>}
       </button>
 

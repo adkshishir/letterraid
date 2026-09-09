@@ -53,6 +53,14 @@ export default function HeistGame({
     return () => onPhaseChange?.(false);
   }, [state?.status, onPhaseChange]);
 
+  useEffect(() => {
+    // The `key` re-keying below remounts the input to restart the shake, which
+    // drops it in favor of a fresh DOM node whose only focus signal is
+    // `autoFocus` — browsers routinely ignore that outside a user gesture, so
+    // a bounced claim would otherwise silently take the keyboard away mid-race.
+    if (game.error) inputRef.current?.focus();
+  }, [game.error]);
+
   const nameFor = (id: string) =>
     id === playerId
       ? "You"
