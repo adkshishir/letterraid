@@ -20,10 +20,10 @@ const BACKEND_URL =
  * them — matchmaking pre-seeds a room's seats with the authenticated
  * player id from `/match/queue`, and the socket join has to reconnect into
  * that same seat rather than create a third, ghost player. Signed-out play
- * (the legacy marketing `/heist` route) falls back to a random UUID kept in
- * localStorage, which survives a closed tab or a killed mobile browser the
- * same way. Socket IDs change on every reconnect and must never be used for
- * identity.
+ * (joining a shared `/room/[code]` link without logging in) falls back to a
+ * random UUID kept in localStorage, which survives a closed tab or a killed
+ * mobile browser the same way. Socket IDs change on every reconnect and must
+ * never be used for identity.
  */
 export function getPlayerId(): string {
   const player = getStoredPlayer();

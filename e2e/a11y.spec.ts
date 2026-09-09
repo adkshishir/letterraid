@@ -44,18 +44,9 @@ test.describe("theming", () => {
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
-    // And survives navigation into a game page.
-    await page.goto("/heist");
+    // And survives navigation into a room page.
+    await page.goto("/room/ZZZZ");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  });
-
-  test("the toggle is reachable from a game page", async ({ browser }) => {
-    const context = await browser.newContext({ colorScheme: "dark" });
-    const page = await context.newPage();
-    await page.goto("/heist");
-
-    await page.getByRole("button", { name: /switch to light mode/i }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   });
 });
 
@@ -111,16 +102,6 @@ test.describe("SEO surfaces", () => {
     await page.goto("/room/ZZZZ");
     const robots = page.locator('meta[name="robots"]');
     await expect(robots).toHaveAttribute("content", /noindex/);
-  });
-
-  test("marketing pages carry structured data", async ({ page }) => {
-    await page.goto("/heist");
-    const ld = await page
-      .locator('script[type="application/ld+json"]')
-      .innerText();
-    const parsed = JSON.parse(ld);
-    expect(parsed["@type"]).toBe("WebApplication");
-    expect(parsed.name).toBe("Heist");
   });
 
   test("the room invite card names the game without leaking the puzzle", async ({

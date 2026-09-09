@@ -67,15 +67,10 @@ export default function RoomClient({ code }: { code: string }) {
   const [playing, setPlaying] = useState(false);
   const handlePhaseChange = useCallback((next: boolean) => setPlaying(next), []);
 
+  // Leaving the room (header's back button, or the result screen's "Back to
+  // Home") always returns to the hub at "/" — the same destination the
+  // room-not-found/room-full states already link to.
   const handleLeave = () => {
-    leave();
-    router.push(game ? `/${game}` : "/");
-  };
-
-  // Distinct from `handleLeave` (which returns to this game's own landing
-  // page): "Back to Home" from the result screen always goes to "/", the
-  // same destination the room-not-found/room-full states already link to.
-  const handleGoHome = () => {
     leave();
     router.push("/");
   };
@@ -152,7 +147,7 @@ export default function RoomClient({ code }: { code: string }) {
             roomCode={code}
             playerId={playerId}
             players={players}
-            onGoHome={handleGoHome}
+            onGoHome={handleLeave}
             onPhaseChange={handlePhaseChange}
           />
         )}

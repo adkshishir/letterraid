@@ -9,4 +9,4 @@ export const SITE_URL =
  * (`/room/*`) are not. Room codes must never be enumerated here — they're
  * ephemeral and private to a pair.
  */
-export const INDEXABLE_ROUTES = ["/", "/heist"] as const;
+export const INDEXABLE_ROUTES = ["/"] as const;
