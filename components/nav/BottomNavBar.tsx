@@ -49,7 +49,7 @@ export default function BottomNavBar({ onBattleClick }: BottomNavBarProps) {
                 onClick={handleClick}
                 className="flex items-center justify-center w-12 h-12 relative group active:scale-90 transition-transform duration-200"
               >
-                <div className="energy-ring" />
+                <div className="energy-ring -translate-y-4" />
                 <div
                   className="flex items-center justify-center w-12 h-12 rounded-full -translate-y-4"
                   style={{
