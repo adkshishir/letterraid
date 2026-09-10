@@ -70,6 +70,13 @@ export function isLoggedIn(): boolean {
   return !!getToken();
 }
 
+/**
+ * Bounds every request here so a dropped or hanging connection always
+ * rejects instead of leaving a caller (notably `AuthGuard`'s loading
+ * spinner, which has no other way out) waiting forever.
+ */
+const REQUEST_TIMEOUT_MS = 10_000;
+
 async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -78,10 +85,20 @@ async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${BACKEND_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${BACKEND_URL}${path}`, {
+      ...options,
+      headers,
+      signal: timeout,
+    });
+  } catch (err) {
+    if (timeout.aborted) {
+      throw new Error("Request timed out. Check your connection and try again.");
+    }
+    throw err;
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ message: res.statusText }));
