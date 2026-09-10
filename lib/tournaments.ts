@@ -8,7 +8,7 @@ export type TournamentSize = (typeof TOURNAMENT_SIZES)[number];
 export const TOURNAMENT_DURATIONS_MIN = [30, 60, 120] as const;
 export type TournamentDurationMin = (typeof TOURNAMENT_DURATIONS_MIN)[number];
 
-export type TournamentStatus = "OPEN" | "COMPLETE";
+export type TournamentStatus = "LOBBY" | "OPEN" | "COMPLETE";
 
 export interface TournamentStanding {
   playerId: string;
@@ -25,7 +25,10 @@ export interface TournamentSummary {
   maxMembers: number;
   durationMin: number;
   memberCount: number;
-  endsAt: string;
+  /** Null while the tournament is still a lobby (not yet started). */
+  startedAt: string | null;
+  /** Null while the tournament is still a lobby (not yet started). */
+  endsAt: string | null;
   status: TournamentStatus;
   clanId: string | null;
 }
@@ -83,6 +86,10 @@ export function createTournament(input: {
 
 export function joinTournament(idOrCode: string): Promise<TournamentDetail> {
   return api(`/tournaments/${idOrCode}/join`, { method: "POST" });
+}
+
+export function startTournament(idOrCode: string): Promise<TournamentDetail> {
+  return api(`/tournaments/${idOrCode}/start`, { method: "POST" });
 }
 
 export function enqueueTournamentMatch(

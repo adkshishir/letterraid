@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Swords, Trophy, Users, Clock, Loader2, X, Share2 } from "lucide-react";
+import { Swords, Trophy, Users, Clock, Loader2, X, Share2, Play } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import {
   TournamentDetail,
@@ -12,6 +12,7 @@ import {
   fetchTournament,
   getTournamentActiveMatch,
   joinTournament,
+  startTournament,
 } from "@/lib/tournaments";
 import { Countdown } from "../TournamentView";
 
@@ -100,6 +101,19 @@ export default function TournamentRoomClient({ code }: { code: string }) {
     }
   };
 
+  const handleStart = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      await startTournament(code);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start tournament");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (detail === undefined) {
     return (
       <div className="px-4 max-w-lg mx-auto py-16 flex justify-center">
@@ -124,7 +138,9 @@ export default function TournamentRoomClient({ code }: { code: string }) {
     );
   }
 
+  const isLobby = detail.status === "LOBBY";
   const isOpen = detail.status === "OPEN";
+  const isHost = detail.creatorId === player?.id;
 
   return (
     <div className="px-4 max-w-lg mx-auto animate-fade-in">
@@ -140,7 +156,8 @@ export default function TournamentRoomClient({ code }: { code: string }) {
             >
               <span className="flex items-center gap-1"><Users size={11} /> {detail.memberCount}/{detail.maxMembers}</span>
               <span className="flex items-center gap-1">
-                <Clock size={11} /> {isOpen ? <Countdown endsAt={detail.endsAt} /> : "Ended"}
+                <Clock size={11} />{" "}
+                {isLobby ? "Not started" : detail.endsAt && isOpen ? <Countdown endsAt={detail.endsAt} /> : "Ended"}
               </span>
               {detail.clanName && <span>{detail.clanName}</span>}
             </div>
@@ -164,7 +181,44 @@ export default function TournamentRoomClient({ code }: { code: string }) {
         </div>
       )}
 
-      {isOpen ? (
+      {isLobby ? (
+        <div className="glass rounded-2xl p-5 mb-8 flex flex-col items-center text-center gap-3">
+          {isHost ? (
+            <>
+              <button
+                onClick={handleStart}
+                disabled={busy || detail.memberCount < 2}
+                className="w-full rounded-xl bg-[#7c3aed] py-3.5 text-sm font-bold text-white shadow-[0_4px_20px_rgba(124,58,237,0.3)] hover:shadow-[0_6px_28px_rgba(124,58,237,0.4)] transition-all disabled:opacity-30 flex items-center justify-center gap-2 tap-scale"
+                style={{ fontFamily: "var(--font-sora)" }}
+              >
+                {busy ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <>
+                    <Play size={16} />
+                    Start Tournament
+                  </>
+                )}
+              </button>
+              <p className="text-xs text-[#ccc3d8]/40" style={{ fontFamily: "var(--font-hanken)" }}>
+                {detail.memberCount < 2
+                  ? "Need at least 2 players joined before you can start."
+                  : `Start now with ${detail.memberCount} of ${detail.maxMembers} joined, or wait for more to trickle in.`}
+              </p>
+            </>
+          ) : (
+            <>
+              <Clock size={24} className="text-[#7c3aed]/50" />
+              <p className="text-sm text-[#ccc3d8]/60" style={{ fontFamily: "var(--font-hanken)" }}>
+                Waiting for the host to start the tournament…
+              </p>
+              <p className="text-xs text-[#ccc3d8]/40" style={{ fontFamily: "var(--font-hanken)" }}>
+                {detail.memberCount}/{detail.maxMembers} joined so far.
+              </p>
+            </>
+          )}
+        </div>
+      ) : isOpen ? (
         <div className="glass rounded-2xl p-5 mb-8 flex flex-col items-center text-center gap-3">
           {searching ? (
             <>

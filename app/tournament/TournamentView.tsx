@@ -195,12 +195,18 @@ function TournamentList({ tournaments }: { tournaments: TournamentSummary[] }) {
               style={{ fontFamily: "var(--font-jetbrains)" }}
             >
               <span className="flex items-center gap-1"><Users size={11} /> {t.memberCount}/{t.maxMembers}</span>
-              <span className="flex items-center gap-1"><Clock size={11} /> <Countdown endsAt={t.endsAt} /></span>
+              <span className="flex items-center gap-1">
+                <Clock size={11} /> {t.endsAt ? <Countdown endsAt={t.endsAt} /> : "Not started"}
+              </span>
             </div>
           </div>
           <span
             className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full shrink-0 ${
-              t.status === "OPEN" ? "bg-[#5ce0a0]/10 text-[#5ce0a0]" : "bg-white/[0.04] text-[#ccc3d8]/40"
+              t.status === "OPEN"
+                ? "bg-[#5ce0a0]/10 text-[#5ce0a0]"
+                : t.status === "LOBBY"
+                ? "bg-[#f6c945]/10 text-[#f6c945]"
+                : "bg-white/[0.04] text-[#ccc3d8]/40"
             }`}
             style={{ fontFamily: "var(--font-jetbrains)" }}
           >
