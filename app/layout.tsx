@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Sora, Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
+import DevToolsGuard from "@/components/DevToolsGuard";
 import "./globals.css";
 
 const sora = Sora({
@@ -50,6 +51,7 @@ export default function RootLayout({
       className={`${sora.variable} ${hanken.variable} ${jetbrains.variable} h-full antialiased dark`}
     >
       <body className="min-h-full flex flex-col">
+        <DevToolsGuard />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
